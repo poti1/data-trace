@@ -5,12 +5,6 @@ use warnings;
 use Test::More;
 use Data::Trace;
 
-BEGIN {
-    use_ok( 'Data::Trace' ) || print "Bail out!\n";
-}
-
-diag( "Testing Data::Trace $Data::Trace::VERSION, Perl $], $^X" );
-
 my @cases = (
 
     # Scalar
