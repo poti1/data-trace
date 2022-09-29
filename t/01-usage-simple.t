@@ -4,7 +4,6 @@ use strict;
 use warnings;
 use Test::More;
 use Data::Trace;
-use Storable qw( dclone );
 
 BEGIN {
     use_ok( 'Data::Trace' ) || print "Bail out!\n";
