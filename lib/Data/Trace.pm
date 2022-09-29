@@ -17,15 +17,13 @@ Data::Trace - Trace when a data structure gets updated.
 
 =head1 VERSION
 
-Version 0.04
+Version 0.05
 
 =cut
 
-our $VERSION = '0.04';
+our $VERSION = '0.05';
 
 =head1 SYNOPSIS
-
-TODO
 
     use Data::Trace;
 
@@ -95,10 +93,6 @@ Expand this to also detect C<PUSH>, C<POP>, C<DELETE>, etc.
 You can find documentation for this module with the perldoc command.
 
     perldoc Data::Trace
-
-=head1 ACKNOWLEDGEMENTS
-
-TBD
 
 =head1 LICENSE AND COPYRIGHT
 
