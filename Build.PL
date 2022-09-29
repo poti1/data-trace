@@ -1,3 +1,5 @@
+#!/bin/env perl
+
 use 5.006;
 use strict;
 use warnings;
@@ -17,9 +19,7 @@ my $builder = Module::Build->new(
         'Test::More' => '0',
     },
     requires => {
-
-        #'ABC'              => '1.6',
-        #'Foo::Bar::Module' => '5.0401',
+        'Data::DPath' => '0.58',
     },
     add_to_cleanup => ['Data-Trace-*'],
 );

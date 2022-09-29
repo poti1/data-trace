@@ -4,6 +4,9 @@ use 5.006;
 use strict;
 use warnings;
 
+use FindBin();
+use lib $FindBin::RealBin;
+
 use Data::Tie::Watch;     # Tie::Watch copy.
 use Data::DPath;          # All refs in a struct.
 use Carp qw(longmess);    # Stack trace.
@@ -46,22 +49,31 @@ its been changed, but this module is without Moose support.
 
 =head2 Trace
 
+ Data::Trace->Trace( \$scalar );
+ Data::Trace->Trace( \@array );
+ Data::Trace->Trace( \@hash );
+ Data::Trace->Trace( $complex_data );
+
 =cut
 
 sub Trace {
-    myy( $self, $data ) = @_;
+    my ( $self, $data ) = @_;
+
+    if ( not ref $data ) {
+        die "Error: data must be a reference!";
+    }
 
     my @nodes = grep { ref } Data::DPath->match( $data, "//" );
 
     for my $node ( @nodes ) {
 
-        # say "Tying: $node";
-        Tie::Watch->new(
+        # print "Tying: $node\n";
+        Data::Tie::Watch->new(
             -variable => $node,
             -store    => sub {
                 my ( $self, $v ) = @_;
                 $self->Store( $v );
-                say "Storing here:" . longmess();
+                print "Storing here:" . longmess();
             }
         );
     }
@@ -74,6 +86,9 @@ Tim Potapov, C<< <tim.potapov at gmail.com> >>
 =head1 BUGS
 
 Please report any bugs or feature requests to L<https://github.com/poti1/data-trace/issues>.
+
+Currently only detect C<STORE> operations.
+Expand this to also detect C<PUSH>, C<POP>, C<DELETE>, etc.
 
 =head1 SUPPORT
 
