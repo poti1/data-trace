@@ -204,6 +204,16 @@ my @cases = (
     # HOH
 
     # Object
+    {
+        name          => "Object data",
+        expect_change => 1,
+        action        => sub {
+            my $var = { a => 1, b => [ 5, { c => 3 } ] };
+            bless $var, "MyPackage";
+            Data::Trace->Trace( $var );
+            $var->{b}[1]{c} = 4;
+        },
+    },
 
     # Complex
     {
