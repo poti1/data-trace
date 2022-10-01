@@ -24,8 +24,8 @@ my $builder = Module::Build->new(
     add_to_cleanup => ['Data-Trace-*'],
     meta_merge     => {
         resources => {
-            bugtracker  => 'https://github.com/poti1/data-trace/issues',
-            repository  => 'https://github.com/poti1/data-trace',
+            bugtracker => 'https://github.com/poti1/data-trace/issues',
+            repository => 'https://github.com/poti1/data-trace',
         },
     },
 );
