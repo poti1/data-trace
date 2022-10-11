@@ -35,8 +35,8 @@ jobs:
         cpanm Test::CheckManifest Test::Pod::Coverage Test::Pod
 
     - name: Run tests
-      #env:
-      #  RELEASE_TESTING: 1
+      env:
+        RELEASE_TESTING: 1
       run: |
         perl Build.PL
         perl Build
