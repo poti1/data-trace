@@ -94,4 +94,3 @@
 
 # Avoid git flow
 /.github/workflows/ci\.yml$
-/MANIFEST\.SKIP$
