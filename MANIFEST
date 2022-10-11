@@ -3,6 +3,7 @@ Changes
 lib/Data/Tie/Watch.pm
 lib/Data/Trace.pm
 MANIFEST			This list of files
+MANIFEST.SKIP
 META.json
 META.yml
 README
