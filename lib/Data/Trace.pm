@@ -17,7 +17,7 @@ Data::Trace - Trace when a data structure gets updated.
 
 =cut
 
-our $VERSION = '0.12';
+our $VERSION = '0.13';
 
 =head1 SYNOPSIS
 
