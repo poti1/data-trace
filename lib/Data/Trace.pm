@@ -21,7 +21,7 @@ Data::Trace - Trace when a data structure gets updated.
 
 =cut
 
-our $VERSION = '0.14';
+our $VERSION = '0.15';
 
 =head1 SYNOPSIS
 
@@ -149,7 +149,19 @@ sub _Trace {
                     | Data::Tie::Watch::callback
                     | Mojolicious
                     | Mojo
+                    | Try::Tiny
+                    | eval
                 ) \b
+
+                |
+
+                (?:
+                      Try/Tiny
+                    | Mojolicious
+                    | Mojolicious/Controller
+                )
+                \.pm \s+ line
+
             }x
       }
       map { s/^\s+//r }
