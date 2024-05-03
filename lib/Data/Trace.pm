@@ -10,7 +10,10 @@ use lib $FindBin::RealBin;
 use Data::Tie::Watch;    # Tie::Watch copy.
 use Data::DPath;         # All refs in a struct.
 use Carp();
+use Storable();
 use feature qw( say );
+
+our @TIED_NODES;
 
 =head1 NAME
 
@@ -42,6 +45,22 @@ its been changed, but this module is without Moose support.
 
 =head1 SUBROUTINES/METHODS
 
+=cut
+
+sub import {
+    my $orig = \&Storable::dclone;
+
+    no warnings "redefine";
+
+    *Storable::dclone = sub ($) {
+        my @nodes = __PACKAGE__->_UnTieNodes();
+        my $data  = $orig->( @_ );
+        __PACKAGE__->_TieNodes( \@nodes );
+
+        $data;
+    };
+}
+
 =head2 Trace
 
  Data::Trace->Trace( \$scalar );
@@ -52,42 +71,39 @@ its been changed, but this module is without Moose support.
 =cut
 
 sub Trace {
+    shift->_TieNodes( @_ );
+}
+
+sub _TieNodes {
     my ( $self, $data ) = @_;
 
     if ( not ref $data ) {
         die "Error: data must be a reference!";
     }
 
-    my @nodes = grep { ref } Data::DPath->match( $data, "//" );
-    my %args  = $self->_DefineWatchArgs();
+    @TIED_NODES = grep { ref } Data::DPath->match( $data, "//" );
 
-    for my $node ( @nodes ) {
-        Data::Tie::Watch->new(
+    my %args = $self->_DefineWatchArgs();
+
+    for my $node ( @TIED_NODES ) {
+        $node = Data::Tie::Watch->new(
             -variable => $node,
             %args,
         );
     }
+
+    \@TIED_NODES;
 }
 
-sub _Trace {
-    my ( $class, $message ) = @_;
-    $message //= '';
+sub _UnTieNodes {
+    my ( $self ) = @_;
+    return if not @TIED_NODES;
 
-    say for
-      "$message:", map { "\t$_" }
-      grep {
-        !m{
-                ^ \s* (?:
-                      Class::MOP
-                    | [\w_:]+ :: _wrapped_ \w+
-                    | $class
-                    | Data::Tie::Watch::callback
-                ) \b
-            }x
-      }
-      map { s/^\s+//r }
-      split /\n/,
-      Carp::longmess( $class );
+    for my $node ( @TIED_NODES ) {
+        $node->Unwatch();
+    }
+
+    splice @TIED_NODES;
 }
 
 sub _DefineWatchArgs {
@@ -107,14 +123,38 @@ sub _DefineWatchArgs {
 
     for my $name ( @methods ) {
         $args{"-$name"} = sub {
-            my ( $self, $v ) = @_;
+            my ( $_self, @_args ) = @_;
             my $method = ucfirst $name;
             __PACKAGE__->_Trace( "\U$name\Eing here" );
-            $self->$method();
+            $_self->$method( @_args );
         };
     }
 
     %args;
+}
+
+sub _Trace {
+    my ( $class, $message ) = @_;
+    $message //= '';
+
+    $Carp::MaxArgNums = -1;
+
+    say for "$message:", map { "\t$_" }
+      grep {
+        !m{
+                ^ \s* (?:
+                      Class::MOP
+                    | [\w_:]+ :: _wrapped_ \w+
+                    | $class
+                    | Data::Tie::Watch::callback
+                    | Mojolicious
+                    | Mojo
+                ) \b
+            }x
+      }
+      map { s/^\s+//r }
+      split /\n/,
+      Carp::longmess( $class );
 }
 
 =head1 AUTHOR
