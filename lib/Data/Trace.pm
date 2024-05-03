@@ -7,9 +7,10 @@ use warnings;
 use FindBin();
 use lib $FindBin::RealBin;
 
-use Data::Tie::Watch;     # Tie::Watch copy.
-use Data::DPath;          # All refs in a struct.
-use Carp qw(longmess);    # Stack trace.
+use Data::Tie::Watch;    # Tie::Watch copy.
+use Data::DPath;         # All refs in a struct.
+use Carp();
+use feature qw( say );
 
 =head1 NAME
 
@@ -17,7 +18,7 @@ Data::Trace - Trace when a data structure gets updated.
 
 =cut
 
-our $VERSION = '0.13';
+our $VERSION = '0.14';
 
 =head1 SYNOPSIS
 
@@ -58,24 +59,62 @@ sub Trace {
     }
 
     my @nodes = grep { ref } Data::DPath->match( $data, "//" );
+    my %args  = $self->_DefineWatchArgs();
 
     for my $node ( @nodes ) {
-
-        # print "Tying: $node\n";
         Data::Tie::Watch->new(
             -variable => $node,
-            -store    => sub {
-                my ( $self, $v ) = @_;
-                $self->Store( $v );
-                print "Storing here:" . longmess();
-            },
-            -delete    => sub {
-                my ( $self, $v ) = @_;
-                $self->Store( $v );
-                print "Deleting here:" . longmess();
-            },
+            %args,
         );
     }
+}
+
+sub _Trace {
+    my ( $class, $message ) = @_;
+    $message //= '';
+
+    say for
+      "$message:", map { "\t$_" }
+      grep {
+        !m{
+                ^ \s* (?:
+                      Class::MOP
+                    | [\w_:]+ :: _wrapped_ \w+
+                    | $class
+                    | Data::Tie::Watch::callback
+                ) \b
+            }x
+      }
+      map { s/^\s+//r }
+      split /\n/,
+      Carp::longmess( $class );
+}
+
+sub _DefineWatchArgs {
+    my @methods = qw(
+      store
+      clear
+      delete
+      extend
+      pop
+      push
+      shift
+      splice
+      unshift
+    );
+
+    my %args;
+
+    for my $name ( @methods ) {
+        $args{"-$name"} = sub {
+            my ( $self, $v ) = @_;
+            my $method = ucfirst $name;
+            __PACKAGE__->_Trace( "\U$name\Eing here" );
+            $self->$method();
+        };
+    }
+
+    %args;
 }
 
 =head1 AUTHOR
