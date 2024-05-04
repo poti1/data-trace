@@ -12,6 +12,7 @@ use Data::DPath;         # All refs in a struct.
 use Carp();
 use parent  qw( Exporter );
 use feature qw( say );
+use e;
 
 =head1 NAME
 
@@ -58,27 +59,48 @@ sub Trace {
 }
 
 sub _TieNodes {
-    my ( $class, $data ) = @_;
+    my ( $class, $data, @args ) = @_;
+    trace;
 
     if ( not ref $data ) {
         die "Error: data must be a reference!";
     }
 
-    my @nodes = grep { ref } Data::DPath->match( $data, "//" );
-    my %args  = $class->_DefineWatchArgs();
+    my @nodes   = grep { ref } Data::DPath->match( $data, "//" );
+    my %watches = $class->_BuildWatcherMethods();
 
     for my $node ( @nodes ) {
         $node = Data::Tie::Watch->new(
             -variable => $node,
-            %args,
+            %watches,
+            @args,
         );
     }
 
     @nodes;
 }
 
-sub _DefineWatchArgs {
-    my @methods = qw(
+sub _BuildWatcherMethods {
+    my ( $class ) = @_;
+    my %args;
+
+    for my $name ( $class->_DefineMethodNames() ) {
+        my $method = ucfirst $name;
+        $args{"-$name"} = sub {
+            my ( $_self, @_args ) = @_;
+            my $_args =
+              join ", ",
+              map { defined() ? qq("$_") : "undef" } @_args;
+            __PACKAGE__->_Trace( "\U$name\E( $_args ):" );
+            $_self->$method( @_args );
+        };
+    }
+
+    %args;
+}
+
+sub _DefineMethodNames {
+    qw(
       store
       clear
       delete
@@ -89,20 +111,6 @@ sub _DefineWatchArgs {
       splice
       unshift
     );
-
-    my %args;
-
-    for my $name ( @methods ) {
-        $args{"-$name"} = sub {
-            my ( $_self, @_args ) = @_;
-            my $method = ucfirst $name;
-            my $_args  = sprintf '"%s"', join '", "', @_args;
-            __PACKAGE__->_Trace( "\U$name\E( $_args ):" );
-            $_self->$method( @_args );
-        };
-    }
-
-    %args;
 }
 
 sub _Trace {

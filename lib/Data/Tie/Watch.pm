@@ -159,6 +159,7 @@ use 5.004_57;
 use Carp;
 use strict;
 use Scalar::Util qw( reftype weaken );
+use e;
 
 our %METHODS;
 
@@ -171,18 +172,28 @@ sub new {
     my $class = shift;
     my %args  = (
         -shadow => 1,
+        -clone  => 1,    # Clones are also watched.
         @_,
     );
 
-    if ( not defined $args{-variable} ) {
-        croak "Data::Tie::Watch::new(): -variable is required.";
-    }
+    croak "-variable is required!" if !$args{-variable};
 
     my $methods = $class->_build_methods( %args );
     for ( keys %args ) {
-        next if not $methods->{$_};
+
+        # Skip -shadow like options.
         next if reftype( $args{$_} ) ne "CODE";
-        $methods->{$_} = delete $args{$_};
+
+        if ( $methods->{$_} ) {
+
+            # Assign new valide method from arguments.
+            $methods->{$_} = delete $args{$_};
+        }
+        else {
+            # Able to pass in more options for
+            # simplicity. Exclude them here.
+            delete $args{$_};
+        }
     }
 
     my $watch_obj = $class->_build_obj( %args );
@@ -279,26 +290,31 @@ sub DESTROY {
 
 # Not used apparently.
 sub Unwatch {
-    my $variable = $_[0]->{-variable};
-    my $type     = reftype( $variable );
+    my $var = $_[0]->{-variable};
+    return if not $var;
+
+    my $type = reftype( $var );
+    return if not $type;
+
     my $copy;
 
     $copy = $_[0]->{-ptr} if $type !~ /(SCALAR|REF)/;
     my $shadow = $_[0]->{-shadow};
     undef $_[0];
+
     if ( $type =~ /(SCALAR|REF)/ ) {
-        untie $$variable;
+        untie $$var;
     }
     elsif ( $type =~ /ARRAY/ ) {
-        untie @$variable;
-        @$variable = @$copy if $shadow;
+        untie @$var;
+        @$var = @$copy if $shadow;
     }
     elsif ( $type =~ /HASH/ ) {
-        untie %$variable;
-        %$variable = %$copy if $shadow;
+        untie %$var;
+        %$var = %$copy if $shadow;
     }
     else {
-        croak "Data::Tie::Watch::Delete() - not a variable reference.";
+        croak "not a variable reference.";
     }
 }
 
@@ -327,21 +343,37 @@ sub base_watch {
 =cut
 
 sub callback {
-    my ( $watch_obj, $method_key, %args ) = @_;
-    if (    $METHODS{ $watch_obj->{id} }
-        and $METHODS{ $watch_obj->{id} }->{$method_key} )
-    {
-        my $method = $METHODS{ $watch_obj->{id} }->{$method_key};
-        return $method->( $watch_obj, %args );
+    my ( $watch_obj, $mkey, %args ) = @_;
+    my $id =
+        $watch_obj->{-clone}
+      ? $watch_obj->{id}
+      : "$watch_obj";
+
+    if ( $METHODS{$id} && $METHODS{$id}{$mkey} ) {
+        return $METHODS{$id}{$mkey}->( $watch_obj, %args, );
     }
 
-    my $method_name = $method_key =~ s/^-(\w+)/\L\u$1/r;
+    my $method_name = $mkey =~ s/^-(\w+)/\L\u$1/r;
     my $method      = sprintf( "Data::Tie::Watch::%s::%s",
         "\L\u$watch_obj->{type}\E", $method_name, );
-    print "NO METHOD: $method\n";
+    print "NO METHOD:\n";
+    print "  $watch_obj\n";
+    print "  $method\n";
 
-    no strict 'refs';
-    $method->( $watch_obj, %args );
+    # Should also finish its current action.
+    my @return;
+    {
+        no strict 'refs';
+        @return = $method->( $watch_obj, %args );
+    }
+
+    # Untie.
+    # Do NOT run any callback methods after this
+    # point in order to avoid SEGMENTATION errors!
+    $watch_obj->Unwatch();
+
+    return @return if wantarray;
+    return $return[0];
 }
 
 ###############################################################################
