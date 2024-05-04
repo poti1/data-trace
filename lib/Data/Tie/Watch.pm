@@ -18,10 +18,7 @@ package Data::Tie::Watch;
      -store    => \&store,
      -destroy  => sub {print "Final value=$frog.\n"},
  }
- %vinfo = $watch->Info;
- $args  = $watch->Args(-fetch);
  $val   = $watch->Fetch;
- print "val=", $watch->Say($val), ".\n";
  $watch->Store('Hello');
  $watch->Unwatch;
 
@@ -62,53 +59,6 @@ To map a tied method name to a default callback name simply lowercase
 the tied method name and uppercase its first character.  So FETCH
 becomes Fetch, NEXTKEY becomes Nextkey, etcetera.
 
-Here are two callbacks for a scalar. The B<FETCH> (read) callback does
-nothing other than illustrate the fact that it returns the value to
-assign the variable.  The B<STORE> (write) callback uppercases the
-variable and returns it.  In all cases the callback I<must> return the
-correct read or write value - typically, it does this by invoking the
-underlying method.
-
- my $fetch_scalar = sub {
-     my($self) = @_;
-     $self->Fetch;
- };
-
- my $store_scalar = sub {
-     my($self, $new_val) = @_;
-     $self->Store(uc $new_val);
- };
-
-Here are B<FETCH> and B<STORE> callbacks for either an array or hash.
-They do essentially the same thing as the scalar callbacks, but
-provide a little more information.
-
- my $fetch = sub {
-     my($self, $key) = @_;
-     my $val = $self->Fetch($key);
-     print "In fetch callback, key=$key, val=", $self->Say($val);
-     my $args = $self->Args(-fetch);
-     print ", args=('", join("', '",  @$args), "')" if $args;
-     print ".\n";
-     $val;
- };
-
- my $store = sub {
-     my($self, $key, $new_val) = @_;
-     my $val = $self->Fetch($key);
-     $new_val = uc $new_val;
-     $self->Store($key, $new_val);
-     print "In store callback, key=$key, val=", $self->Say($val),
-       ", new_val=", $self->Say($new_val);
-     my $args = $self->Args(-store);
-     print ", args=('", join("', '",  @$args), "')" if $args;
-     print ".\n";
-     $new_val;
- };
-
-In all cases, the first parameter is a reference to the Watch object,
-used to invoke the following class methods.
-
 =head1 METHODS
 
 =over 4
@@ -140,41 +90,10 @@ B<-pop>, B<-push>, B<-shift>, B<-splice>, B<-storesize> and
 B<-unshift>.  Additionally for hashes: B<-clear>, B<-delete>,
 B<-exists>, B<-firstkey> and B<-nextkey>.
 
-=item $args = $watch->Args(-fetch);
-
-Returns a reference to a list of arguments for the specified callback,
-or undefined if none.
-
 =item $watch->Fetch();  $watch->Fetch($key);
 
 Returns a variable's current value.  $key is required for an array or
 hash.
-
-=item %vinfo = $watch->Info();
-
-Returns a hash detailing the internals of the Watch object, with these
-keys:
-
- %vinfo = {
-     -variable =>  SCALAR(0x200737f8)
-     -debug    =>  '0'
-     -shadow   =>  '1'
-     -value    =>  'HELLO SCALAR'
-     -destroy  =>  ARRAY(0x200f86cc)
-     -fetch    =>  ARRAY(0x200f8558)
-     -store    =>  ARRAY(0x200f85a0)
-     -legible  =>  above data formatted as a list of string, for printing
- }
-
-For array and hash Watch objects, the B<-value> key is replaced with a
-B<-ptr> key which is a reference to the parallel array or hash.
-Additionally, for an array or hash, there are key/value pairs for
-all the variable specific callbacks.
-
-=item $watch->Say($val);
-
-Used mainly for debugging, it returns $val in quotes if required, or
-the string "undefined" for undefined values.
 
 =item $watch->Store($new_val);  $watch->Store($key, $new_val);
 
@@ -244,146 +163,138 @@ use 5.004_57;
 use Carp;
 use strict;
 use Scalar::Util qw( reftype );
-use subs         qw/normalize_callbacks/;
-use vars         qw/@array_callbacks @hash_callbacks @scalar_callbacks/;
+use e;
 
-@array_callbacks = qw/-clear -delete -destroy -exists -extend -fetch
-  -fetchsize -pop -push -shift -splice -store
-  -storesize -unshift/;
-@hash_callbacks = qw/-clear -delete -destroy -exists -fetch -firstkey
-  -nextkey -store/;
-@scalar_callbacks = qw/-destroy -fetch -store/;
+our %METHODS;
+
+# Watch constructor.  The *real* constructor is Data::Tie::Watch->base_watch(),
+# invoked by methods in other Watch packages, depending upon the variable's
+# type.  Here we supply defaulted parameter values and then verify them,
+# normalize all callbacks and bind the variable to the appropriate package.
 
 sub new {
+    my $class = shift;
+    my %args  = (
+        -debug  => 0,
+        -shadow => 1,
+        @_,
+    );
 
- # Watch constructor.  The *real* constructor is Data::Tie::Watch->base_watch(),
- # invoked by methods in other Watch packages, depending upon the variable's
- # type.  Here we supply defaulted parameter values and then verify them,
- # normalize all callbacks and bind the variable to the appropriate package.
+    if (not defined $args{-variable}) {
+        croak "Data::Tie::Watch::new(): -variable is required.";
+    }
+        
+    my $methods = $class->_build_methods( %args );
+    for ( keys %args ) {
+        if ( reftype($args{$_}) eq "CODE" ) {
+            say "Added: $_";
+            $methods->{$_} = delete $args{$_};
+        }
+    }
 
-    my ( $class, %args ) = @_;
-    my $version          = $Data::Tie::Watch::VERSION;
-    my ( %arg_defaults ) = ( -debug => 0, -shadow => 1 );
-    my $variable         = $args{-variable};
-    croak "Data::Tie::Watch::new(): -variable is required."
-      if not defined $variable;
+    say "args:";
+    p \%args;
 
-    my ( $type, $watch_obj ) = ( reftype( $variable ), undef );
+    say "methods:";
+    d $methods;
+
+    my $watch_obj = $class->_build_obj( %args );
+    $METHODS{ $watch_obj->{id} } = $methods;
+
+    say "watch_obj:";
+    d $watch_obj;
+
+    $watch_obj;
+}
+
+sub _build_methods {
+    my ($class,%args) = @_;
+    my $var           = $args{-variable};
+    my $type          = reftype( $var );
+    my %methods;
+
     if ( $type =~ /(SCALAR|REF)/ ) {
-        @arg_defaults{@scalar_callbacks} = (
-            [ \&Data::Tie::Watch::Scalar::Destroy ],
-            [ \&Data::Tie::Watch::Scalar::Fetch ],
-            [ \&Data::Tie::Watch::Scalar::Store ]
+        %methods = (
+            -destroy => \&Data::Tie::Watch::Scalar::Destroy,
+            -fetch   => \&Data::Tie::Watch::Scalar::Fetch,
+            -store   => \&Data::Tie::Watch::Scalar::Store,
         );
     }
     elsif ( $type =~ /ARRAY/ ) {
-        @arg_defaults{@array_callbacks} = (
-            [ \&Data::Tie::Watch::Array::Clear ],
-            [ \&Data::Tie::Watch::Array::Delete ],
-            [ \&Data::Tie::Watch::Array::Destroy ],
-            [ \&Data::Tie::Watch::Array::Exists ],
-            [ \&Data::Tie::Watch::Array::Extend ],
-            [ \&Data::Tie::Watch::Array::Fetch ],
-            [ \&Data::Tie::Watch::Array::Fetchsize ],
-            [ \&Data::Tie::Watch::Array::Pop ],
-            [ \&Data::Tie::Watch::Array::Push ],
-            [ \&Data::Tie::Watch::Array::Shift ],
-            [ \&Data::Tie::Watch::Array::Splice ],
-            [ \&Data::Tie::Watch::Array::Store ],
-            [ \&Data::Tie::Watch::Array::Storesize ],
-            [ \&Data::Tie::Watch::Array::Unshift ]
+        %methods = (
+            -clear     => \&Data::Tie::Watch::Array::Clear,
+            -delete    => \&Data::Tie::Watch::Array::Delete,
+            -destroy   => \&Data::Tie::Watch::Array::Destroy,
+            -exists    => \&Data::Tie::Watch::Array::Exists,
+            -extend    => \&Data::Tie::Watch::Array::Extend,
+            -fetch     => \&Data::Tie::Watch::Array::Fetch,
+            -fetchsize => \&Data::Tie::Watch::Array::Fetchsize,
+            -pop       => \&Data::Tie::Watch::Array::Pop,
+            -push      => \&Data::Tie::Watch::Array::Push,
+            -shift     => \&Data::Tie::Watch::Array::Shift,
+            -splice    => \&Data::Tie::Watch::Array::Splice,
+            -store     => \&Data::Tie::Watch::Array::Store,
+            -storesize => \&Data::Tie::Watch::Array::Storesize,
+            -unshift   => \&Data::Tie::Watch::Array::Unshif,
         );
     }
     elsif ( $type =~ /HASH/ ) {
-        @arg_defaults{@hash_callbacks} = (
-            [ \&Data::Tie::Watch::Hash::Clear ],
-            [ \&Data::Tie::Watch::Hash::Delete ],
-            [ \&Data::Tie::Watch::Hash::Destroy ],
-            [ \&Data::Tie::Watch::Hash::Exists ],
-            [ \&Data::Tie::Watch::Hash::Fetch ],
-            [ \&Data::Tie::Watch::Hash::Firstkey ],
-            [ \&Data::Tie::Watch::Hash::Nextkey ],
-            [ \&Data::Tie::Watch::Hash::Store ]
+        %methods = (
+            -clear    => \&Data::Tie::Watch::Hash::Clear,
+            -delete   => \&Data::Tie::Watch::Hash::Delete,
+            -destroy  => \&Data::Tie::Watch::Hash::Destroy,
+            -exists   => \&Data::Tie::Watch::Hash::Exists,
+            -fetch    => \&Data::Tie::Watch::Hash::Fetch,
+            -firstkey => \&Data::Tie::Watch::Hash::Firstkey,
+            -nextkey  => \&Data::Tie::Watch::Hash::Nextkey,
+            -store    => \&Data::Tie::Watch::Hash::Stor,
         );
     }
     else {
         croak "Data::Tie::Watch::new() - not a variable reference.";
     }
-    my ( @margs, %ahsh, $args, @args );
-    @margs        = grep !defined $args{$_}, keys %arg_defaults;
-    %ahsh         = %args;                    # argument hash
-    @ahsh{@margs} = @arg_defaults{@margs};    # fill in missing values
-    normalize_callbacks \%ahsh;
+
+    \%methods;
+}
+
+sub _build_obj {
+    my ($class,%args) = @_;
+    my $var           = $args{-variable};
+    my $type          = reftype( $var );
+    my $watch_obj;
 
     if ( $type =~ /(SCALAR|REF)/ ) {
-        $watch_obj = tie $$variable, 'Data::Tie::Watch::Scalar', %ahsh;
+        $watch_obj = tie $$var,
+            'Data::Tie::Watch::Scalar',
+            %args;
     }
     elsif ( $type =~ /ARRAY/ ) {
-        $watch_obj = tie @$variable, 'Data::Tie::Watch::Array', %ahsh;
+        $watch_obj = tie @$var,
+            'Data::Tie::Watch::Array',
+            %args;
     }
     elsif ( $type =~ /HASH/ ) {
-        $watch_obj = tie %$variable, 'Data::Tie::Watch::Hash', %ahsh;
+        $watch_obj = tie %$var,
+            'Data::Tie::Watch::Hash',
+            %args;
     }
+
+    $watch_obj->{id}   = "$watch_obj";
+    $watch_obj->{type} = $type;
+
     $watch_obj;
+}
 
-}    # end new, Watch constructor
-
-sub Args {
-
-    # Return a reference to a list of callback arguments, or undef if none.
-    #
-    # $_[0] = self
-    # $_[1] = callback type
-
-    defined $_[0]->{ $_[1] }->[1]
-      ? [ @{ $_[0]->{ $_[1] } }[ 1 .. $#{ $_[0]->{ $_[1] } } ] ]
-      : undef;
-
-}    # end Args
-
-sub Info {
-
-    # Info() method subclassed by other Watch modules.
-    #
-    # $_[0] = self
-    # @_[1 .. $#_] = optional callback types
-
-    my ( %vinfo, @results );
-    my ( @info ) = ( qw/-variable -debug -shadow/ );
-    push @info, @_[ 1 .. $#_ ] if scalar @_ >= 2;
-    foreach my $type ( @info ) {
-        push @results,
-          sprintf( '%-10s: ', substr $type, 1 ) . $_[0]->Say( $_[0]->{$type} );
-        $vinfo{$type} = $_[0]->{$type};
-    }
-    $vinfo{-legible} = [@results];
-    %vinfo;
-
-}    # end Info
-
-sub Say {
-
-    # For debugging, mainly.
-    #
-    # $_[0] = self
-    # $_[1] = value
-
-    defined $_[1]
-      ? ( reftype( $_[1] ) ne '' ? $_[1] : "'$_[1]'" )
-      : "undefined";
-
-}    # end Say
+# Stop watching a variable by releasing the last reference and untieing it.
+# Update the original variable with its shadow, if appropriate.
+#
+# $_[0] = self
 
 sub Unwatch {
-
-    # Stop watching a variable by releasing the last reference and untieing it.
-    # Update the original variable with its shadow, if appropriate.
-    #
-    # $_[0] = self
-
     my $variable = $_[0]->{-variable};
     my $type     = reftype( $variable );
     my $copy;
+
     $copy = $_[0]->{-ptr} if $type !~ /(SCALAR|REF)/;
     my $shadow = $_[0]->{-shadow};
     undef $_[0];
@@ -401,8 +312,7 @@ sub Unwatch {
     else {
         croak "Data::Tie::Watch::Delete() - not a variable reference.";
     }
-
-}    # end Unwatch
+}
 
 =head2 base_watch
 
@@ -411,21 +321,16 @@ Watch base class constructor invoked by other Watch modules.
 =cut
 
 sub base_watch {
-
-
     my ( $class, %args ) = @_;
-    my $watch_obj = {%args};
-    $watch_obj;
-
-}    # end base_watch
+    +{ %args };
+}
 
 =head2 callback
 
  Execute a Watch callback, either the default or user specified.
  Note that the arguments are those supplied by the tied method,
  not those (if any) specified by the user when the watch object
- was instantiated.  This is for performance reasons, and why the
- Args() method exists.
+ was instantiated.  This is for performance reasons.
 
  $_[0] = self
  $_[1] = callback type
@@ -434,30 +339,25 @@ sub base_watch {
 =cut
 
 sub callback {
-
-    &{ $_[0]->{ $_[1] }->[0] }( $_[0], @_[ 2 .. $#_ ] );
-
-}    # end callback
-
-sub normalize_callbacks {
-
-    # Ensure all callbacks are normalized in [\&code, @args] format.
-
-    my ( $args_ref ) = @_;
-    my ( $cb, $ref );
-    foreach my $arg ( keys %$args_ref ) {
-        next if $arg =~ /variable|debug|shadow/;
-        $cb  = $args_ref->{$arg};
-        $ref = reftype( $cb );
-        if ( $ref =~ /CODE/ ) {
-            $args_ref->{$arg} = [$cb];
-        }
-        elsif ( $ref !~ /ARRAY/ ) {
-            croak "Data::Tie::Watch:  malformed callback $arg=$cb.";
-        }
+    my ($watch_obj,$method_key,%args) = @_;
+    my $method = $METHODS{ $watch_obj->{id} }->{ $method_key };
+    if ( $method ) {
+        say "OK";
+        return $method->( $watch_obj, %args );
     }
 
-}    # end normalize_callbacks
+    my $method_name = $method_key =~ s/^-(\w+)/\L\u$1/r;
+    $method = sprintf(
+        "Data::Tie::Watch::%s::%s",
+        "\L\u$watch_obj->{type}\E",
+        $method_name,
+    );
+    say "NO METHOD: $method";
+  # $watch_obj->Unwatch();
+
+    no strict 'refs';
+    $method->( $watch_obj, %args );
+}
 
 ###############################################################################
 
@@ -465,21 +365,20 @@ package # temporarily disabled from PAUSE indexer because of permission problems
   Data::Tie::Watch::Scalar;
 
 use Carp;
-@Data::Tie::Watch::Scalar::ISA = qw/Data::Tie::Watch/;
+our @ISA = qw( Data::Tie::Watch );
 
 sub TIESCALAR {
-
     my ( $class, %args ) = @_;
     my $variable  = $args{-variable};
     my $watch_obj = Data::Tie::Watch->base_watch( %args );
+
     $watch_obj->{-value} = $$variable;
+
     print "WatchScalar new: $variable created, \@_=", join( ',', @_ ), "!\n"
       if $watch_obj->{-debug};
+
     bless $watch_obj, $class;
-
-}    # end TIESCALAR
-
-sub Info { $_[0]->SUPER::Info( '-value', @Data::Tie::Watch::scalar_callbacks ) }
+}
 
 # Default scalar callbacks.
 
@@ -499,23 +398,21 @@ package # temporarily disabled from PAUSE indexer because of permission problems
   Data::Tie::Watch::Array;
 
 use Carp;
-@Data::Tie::Watch::Array::ISA = qw/Data::Tie::Watch/;
+our @ISA = qw( Data::Tie::Watch );
 
 sub TIEARRAY {
-
     my ( $class,    %args )   = @_;
     my ( $variable, $shadow ) = @args{ -variable, -shadow };
     my @copy;
     @copy = @$variable if $shadow;         # make a private copy of user's array
     $args{-ptr} = $shadow ? \@copy : [];
     my $watch_obj = Data::Tie::Watch->base_watch( %args );
+
     print "WatchArray new: $variable created, \@_=", join( ',', @_ ), "!\n"
       if $watch_obj->{-debug};
+
     bless $watch_obj, $class;
-
-}    # end TIEARRAY
-
-sub Info { $_[0]->SUPER::Info( '-ptr', @Data::Tie::Watch::array_callbacks ) }
+}
 
 # Default array callbacks.
 
@@ -563,23 +460,21 @@ package # temporarily disabled from PAUSE indexer because of permission problems
   Data::Tie::Watch::Hash;
 
 use Carp;
-@Data::Tie::Watch::Hash::ISA = qw/Data::Tie::Watch/;
+our @ISA = qw( Data::Tie::Watch );
 
 sub TIEHASH {
-
     my ( $class,    %args )   = @_;
     my ( $variable, $shadow ) = @args{ -variable, -shadow };
     my %copy;
     %copy = %$variable if $shadow;          # make a private copy of user's hash
     $args{-ptr} = $shadow ? \%copy : {};
     my $watch_obj = Data::Tie::Watch->base_watch( %args );
+
     print "WatchHash new: $variable created, \@_=", join( ',', @_ ), "!\n"
       if $watch_obj->{-debug};
+
     bless $watch_obj, $class;
-
-}    # end TIEHASH
-
-sub Info { $_[0]->SUPER::Info( '-ptr', @Data::Tie::Watch::hash_callbacks ) }
+}
 
 # Default hash callbacks.
 

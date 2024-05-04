@@ -10,10 +10,7 @@ use lib $FindBin::RealBin;
 use Data::Tie::Watch;    # Tie::Watch copy.
 use Data::DPath;         # All refs in a struct.
 use Carp();
-use Storable();
 use feature qw( say );
-
-our @TIED_NODES;
 
 =head1 NAME
 
@@ -21,7 +18,7 @@ Data::Trace - Trace when a data structure gets updated.
 
 =cut
 
-our $VERSION = '0.15';
+our $VERSION = '0.16';
 
 =head1 SYNOPSIS
 
@@ -45,22 +42,6 @@ its been changed, but this module is without Moose support.
 
 =head1 SUBROUTINES/METHODS
 
-=cut
-
-sub import {
-    my $orig = \&Storable::dclone;
-
-    no warnings "redefine";
-
-    *Storable::dclone = sub ($) {
-        my @nodes = __PACKAGE__->_UnTieNodes();
-        my $data  = $orig->( @_ );
-        __PACKAGE__->_TieNodes( \@nodes );
-
-        $data;
-    };
-}
-
 =head2 Trace
 
  Data::Trace->Trace( \$scalar );
@@ -81,29 +62,17 @@ sub _TieNodes {
         die "Error: data must be a reference!";
     }
 
-    @TIED_NODES = grep { ref } Data::DPath->match( $data, "//" );
-
+    my @nodes = grep { ref } Data::DPath->match( $data, "//" );
     my %args = $self->_DefineWatchArgs();
 
-    for my $node ( @TIED_NODES ) {
+    for my $node ( @nodes ) {
         $node = Data::Tie::Watch->new(
             -variable => $node,
             %args,
         );
     }
 
-    \@TIED_NODES;
-}
-
-sub _UnTieNodes {
-    my ( $self ) = @_;
-    return if not @TIED_NODES;
-
-    for my $node ( @TIED_NODES ) {
-        $node->Unwatch();
-    }
-
-    splice @TIED_NODES;
+    @nodes;
 }
 
 sub _DefineWatchArgs {
@@ -125,7 +94,8 @@ sub _DefineWatchArgs {
         $args{"-$name"} = sub {
             my ( $_self, @_args ) = @_;
             my $method = ucfirst $name;
-            __PACKAGE__->_Trace( "\U$name\Eing here" );
+            my $_args  = sprintf '"%s"', join '", "', @_args;
+            __PACKAGE__->_Trace( "\U$name\E( $_args ):" );
             $_self->$method( @_args );
         };
     }
@@ -137,9 +107,12 @@ sub _Trace {
     my ( $class, $message ) = @_;
     $message //= '';
 
-    $Carp::MaxArgNums = -1;
+    local $Carp::MaxArgNums = -1;
 
-    say for "$message:", map { "\t$_" }
+    say "";
+    say $message;
+
+    say for map { "\t$_" }
       grep {
         !m{
                 ^ \s* (?:
@@ -164,7 +137,7 @@ sub _Trace {
 
             }x
       }
-      map { s/^\s+//r }
+      map { s/ ^ \s+ //xr }
       split /\n/,
       Carp::longmess( $class );
 }
