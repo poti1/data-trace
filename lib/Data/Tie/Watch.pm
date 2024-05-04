@@ -192,17 +192,20 @@ sub new {
         }
     }
 
-    say "args:";
-    p \%args;
+    say "\nargs:";
+    d \%args;
 
-    say "methods:";
+    say "\nmethods:";
     d $methods;
 
     my $watch_obj = $class->_build_obj( %args );
     $METHODS{ $watch_obj->{id} } = $methods;
 
-    say "watch_obj:";
+    say "\nwatch_obj:";
     d $watch_obj;
+
+    say "\nMETHODS:";
+    d \%METHODS;
 
     $watch_obj;
 }
@@ -290,6 +293,14 @@ sub _build_obj {
 #
 # $_[0] = self
 
+# Clean up global cache.
+sub DESTROY {
+    my ($watch_obj) = @_;
+    $watch_obj->callback( '-destroy' );
+    delete $METHODS{"$watch_obj"};
+}
+
+# Not used apparently.
 sub Unwatch {
     my $variable = $_[0]->{-variable};
     my $type     = reftype( $variable );
@@ -342,7 +353,7 @@ sub callback {
     my ($watch_obj,$method_key,%args) = @_;
     my $method = $METHODS{ $watch_obj->{id} }->{ $method_key };
     if ( $method ) {
-        say "OK";
+        say "OK: $method_key";
         return $method->( $watch_obj, %args );
     }
 
@@ -388,7 +399,6 @@ sub Store   { $_[0]->{-value} = $_[1] }
 
 # Scalar access methods.
 
-sub DESTROY { $_[0]->callback( '-destroy' ) }
 sub FETCH   { $_[0]->callback( '-fetch' ) }
 sub STORE   { $_[0]->callback( '-store', $_[1] ) }
 
@@ -441,7 +451,6 @@ sub Unshift   { unshift @{ $_[0]->{-ptr} }, @_[ 1 .. $#_ ] }
 
 sub CLEAR     { $_[0]->callback( '-clear' ) }
 sub DELETE    { $_[0]->callback( '-delete', $_[1] ) }
-sub DESTROY   { $_[0]->callback( '-destroy' ) }
 sub EXISTS    { $_[0]->callback( '-exists', $_[1] ) }
 sub EXTEND    { $_[0]->callback( '-extend', $_[1] ) }
 sub FETCH     { $_[0]->callback( '-fetch',  $_[1] ) }
@@ -491,7 +500,6 @@ sub Store    { $_[0]->{-ptr}->{ $_[1] } = $_[2] }
 
 sub CLEAR    { $_[0]->callback( '-clear' ) }
 sub DELETE   { $_[0]->callback( '-delete', $_[1] ) }
-sub DESTROY  { $_[0]->callback( '-destroy' ) }
 sub EXISTS   { $_[0]->callback( '-exists', $_[1] ) }
 sub FETCH    { $_[0]->callback( '-fetch',  $_[1] ) }
 sub FIRSTKEY { $_[0]->callback( '-firstkey' ) }
