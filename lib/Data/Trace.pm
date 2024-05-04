@@ -10,6 +10,7 @@ use lib $FindBin::RealBin;
 use Data::Tie::Watch;    # Tie::Watch copy.
 use Data::DPath;         # All refs in a struct.
 use Carp();
+use parent qw( Exporter );
 use feature qw( say );
 
 =head1 NAME
@@ -18,6 +19,7 @@ Data::Trace - Trace when a data structure gets updated.
 
 =cut
 
+our @EXPORT = qw( Trace );
 our $VERSION = '0.16';
 
 =head1 SYNOPSIS
@@ -52,18 +54,18 @@ its been changed, but this module is without Moose support.
 =cut
 
 sub Trace {
-    shift->_TieNodes( @_ );
+    __PACKAGE__->_TieNodes( @_ );
 }
 
 sub _TieNodes {
-    my ( $self, $data ) = @_;
+    my ( $class, $data ) = @_;
 
     if ( not ref $data ) {
         die "Error: data must be a reference!";
     }
 
     my @nodes = grep { ref } Data::DPath->match( $data, "//" );
-    my %args = $self->_DefineWatchArgs();
+    my %args = $class->_DefineWatchArgs();
 
     for my $node ( @nodes ) {
         $node = Data::Tie::Watch->new(

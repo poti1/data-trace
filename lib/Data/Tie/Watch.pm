@@ -12,7 +12,6 @@ package Data::Tie::Watch;
 
  $watch = Data::Tie::Watch->new(
      -variable => \$frog,
-     -debug    => 1,
      -shadow   => 0,			  
      -fetch    => [\&fetch, 'arg1', 'arg2', ..., 'argn'],
      -store    => \&store,
@@ -70,9 +69,6 @@ create and configure the Watch object.  The only required option is
 B<-variable>.
 
 B<-variable> is a I<reference> to a scalar, array or hash variable.
-
-B<-debug> (default 0) is 1 to activate debug print statements internal
-to Data::Tie::Watch.
 
 B<-shadow> (default 1) is 0 to disable array and hash shadowing.  To
 prevent infinite recursion Data::Tie::Watch maintains parallel variables for
@@ -162,8 +158,7 @@ the same terms as Perl itself.
 use 5.004_57;
 use Carp;
 use strict;
-use Scalar::Util qw( reftype );
-use e;
+use Scalar::Util qw( reftype weaken );
 
 our %METHODS;
 
@@ -175,7 +170,6 @@ our %METHODS;
 sub new {
     my $class = shift;
     my %args  = (
-        -debug  => 0,
         -shadow => 1,
         @_,
     );
@@ -186,26 +180,13 @@ sub new {
         
     my $methods = $class->_build_methods( %args );
     for ( keys %args ) {
-        if ( reftype($args{$_}) eq "CODE" ) {
-            say "Added: $_";
-            $methods->{$_} = delete $args{$_};
-        }
+        next if not $methods->{$_};
+        next if reftype($args{$_}) ne "CODE";
+        $methods->{$_} = delete $args{$_};
     }
-
-    say "\nargs:";
-    d \%args;
-
-    say "\nmethods:";
-    d $methods;
 
     my $watch_obj = $class->_build_obj( %args );
     $METHODS{ $watch_obj->{id} } = $methods;
-
-    say "\nwatch_obj:";
-    d $watch_obj;
-
-    say "\nMETHODS:";
-    d \%METHODS;
 
     $watch_obj;
 }
@@ -285,13 +266,10 @@ sub _build_obj {
     $watch_obj->{id}   = "$watch_obj";
     $watch_obj->{type} = $type;
 
+    weaken $watch_obj->{-variable};
+
     $watch_obj;
 }
-
-# Stop watching a variable by releasing the last reference and untieing it.
-# Update the original variable with its shadow, if appropriate.
-#
-# $_[0] = self
 
 # Clean up global cache.
 sub DESTROY {
@@ -299,6 +277,11 @@ sub DESTROY {
     $watch_obj->callback( '-destroy' );
     delete $METHODS{"$watch_obj"};
 }
+
+# Stop watching a variable by releasing the last reference and untieing it.
+# Update the original variable with its shadow, if appropriate.
+#
+# $_[0] = self
 
 # Not used apparently.
 sub Unwatch {
@@ -351,20 +334,21 @@ sub base_watch {
 
 sub callback {
     my ($watch_obj,$method_key,%args) = @_;
-    my $method = $METHODS{ $watch_obj->{id} }->{ $method_key };
-    if ( $method ) {
-        say "OK: $method_key";
+    if (
+            $METHODS{ $watch_obj->{id} }
+        and $METHODS{ $watch_obj->{id} }->{ $method_key }
+    ) {
+        my $method = $METHODS{ $watch_obj->{id} }->{ $method_key };
         return $method->( $watch_obj, %args );
     }
 
     my $method_name = $method_key =~ s/^-(\w+)/\L\u$1/r;
-    $method = sprintf(
+    my $method = sprintf(
         "Data::Tie::Watch::%s::%s",
         "\L\u$watch_obj->{type}\E",
         $method_name,
     );
-    say "NO METHOD: $method";
-  # $watch_obj->Unwatch();
+    print "NO METHOD: $method\n";
 
     no strict 'refs';
     $method->( $watch_obj, %args );
@@ -384,9 +368,6 @@ sub TIESCALAR {
     my $watch_obj = Data::Tie::Watch->base_watch( %args );
 
     $watch_obj->{-value} = $$variable;
-
-    print "WatchScalar new: $variable created, \@_=", join( ',', @_ ), "!\n"
-      if $watch_obj->{-debug};
 
     bless $watch_obj, $class;
 }
@@ -417,9 +398,6 @@ sub TIEARRAY {
     @copy = @$variable if $shadow;         # make a private copy of user's array
     $args{-ptr} = $shadow ? \@copy : [];
     my $watch_obj = Data::Tie::Watch->base_watch( %args );
-
-    print "WatchArray new: $variable created, \@_=", join( ',', @_ ), "!\n"
-      if $watch_obj->{-debug};
 
     bless $watch_obj, $class;
 }
@@ -478,9 +456,6 @@ sub TIEHASH {
     %copy = %$variable if $shadow;          # make a private copy of user's hash
     $args{-ptr} = $shadow ? \%copy : {};
     my $watch_obj = Data::Tie::Watch->base_watch( %args );
-
-    print "WatchHash new: $variable created, \@_=", join( ',', @_ ), "!\n"
-      if $watch_obj->{-debug};
 
     bless $watch_obj, $class;
 }
