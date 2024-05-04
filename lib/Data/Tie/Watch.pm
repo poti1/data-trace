@@ -174,14 +174,14 @@ sub new {
         @_,
     );
 
-    if (not defined $args{-variable}) {
+    if ( not defined $args{-variable} ) {
         croak "Data::Tie::Watch::new(): -variable is required.";
     }
-        
+
     my $methods = $class->_build_methods( %args );
     for ( keys %args ) {
         next if not $methods->{$_};
-        next if reftype($args{$_}) ne "CODE";
+        next if reftype( $args{$_} ) ne "CODE";
         $methods->{$_} = delete $args{$_};
     }
 
@@ -192,9 +192,9 @@ sub new {
 }
 
 sub _build_methods {
-    my ($class,%args) = @_;
-    my $var           = $args{-variable};
-    my $type          = reftype( $var );
+    my ( $class, %args ) = @_;
+    my $var  = $args{-variable};
+    my $type = reftype( $var );
     my %methods;
 
     if ( $type =~ /(SCALAR|REF)/ ) {
@@ -242,25 +242,19 @@ sub _build_methods {
 }
 
 sub _build_obj {
-    my ($class,%args) = @_;
-    my $var           = $args{-variable};
-    my $type          = reftype( $var );
+    my ( $class, %args ) = @_;
+    my $var  = $args{-variable};
+    my $type = reftype( $var );
     my $watch_obj;
 
     if ( $type =~ /(SCALAR|REF)/ ) {
-        $watch_obj = tie $$var,
-            'Data::Tie::Watch::Scalar',
-            %args;
+        $watch_obj = tie $$var, 'Data::Tie::Watch::Scalar', %args;
     }
     elsif ( $type =~ /ARRAY/ ) {
-        $watch_obj = tie @$var,
-            'Data::Tie::Watch::Array',
-            %args;
+        $watch_obj = tie @$var, 'Data::Tie::Watch::Array', %args;
     }
     elsif ( $type =~ /HASH/ ) {
-        $watch_obj = tie %$var,
-            'Data::Tie::Watch::Hash',
-            %args;
+        $watch_obj = tie %$var, 'Data::Tie::Watch::Hash', %args;
     }
 
     $watch_obj->{id}   = "$watch_obj";
@@ -273,7 +267,7 @@ sub _build_obj {
 
 # Clean up global cache.
 sub DESTROY {
-    my ($watch_obj) = @_;
+    my ( $watch_obj ) = @_;
     $watch_obj->callback( '-destroy' );
     delete $METHODS{"$watch_obj"};
 }
@@ -316,7 +310,7 @@ Watch base class constructor invoked by other Watch modules.
 
 sub base_watch {
     my ( $class, %args ) = @_;
-    +{ %args };
+    +{%args};
 }
 
 =head2 callback
@@ -333,21 +327,17 @@ sub base_watch {
 =cut
 
 sub callback {
-    my ($watch_obj,$method_key,%args) = @_;
-    if (
-            $METHODS{ $watch_obj->{id} }
-        and $METHODS{ $watch_obj->{id} }->{ $method_key }
-    ) {
-        my $method = $METHODS{ $watch_obj->{id} }->{ $method_key };
+    my ( $watch_obj, $method_key, %args ) = @_;
+    if (    $METHODS{ $watch_obj->{id} }
+        and $METHODS{ $watch_obj->{id} }->{$method_key} )
+    {
+        my $method = $METHODS{ $watch_obj->{id} }->{$method_key};
         return $method->( $watch_obj, %args );
     }
 
     my $method_name = $method_key =~ s/^-(\w+)/\L\u$1/r;
-    my $method = sprintf(
-        "Data::Tie::Watch::%s::%s",
-        "\L\u$watch_obj->{type}\E",
-        $method_name,
-    );
+    my $method      = sprintf( "Data::Tie::Watch::%s::%s",
+        "\L\u$watch_obj->{type}\E", $method_name, );
     print "NO METHOD: $method\n";
 
     no strict 'refs';
@@ -380,8 +370,8 @@ sub Store   { $_[0]->{-value} = $_[1] }
 
 # Scalar access methods.
 
-sub FETCH   { $_[0]->callback( '-fetch' ) }
-sub STORE   { $_[0]->callback( '-store', $_[1] ) }
+sub FETCH { $_[0]->callback( '-fetch' ) }
+sub STORE { $_[0]->callback( '-store', $_[1] ) }
 
 ###############################################################################
 

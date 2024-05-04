@@ -10,7 +10,7 @@ use lib $FindBin::RealBin;
 use Data::Tie::Watch;    # Tie::Watch copy.
 use Data::DPath;         # All refs in a struct.
 use Carp();
-use parent qw( Exporter );
+use parent  qw( Exporter );
 use feature qw( say );
 
 =head1 NAME
@@ -19,7 +19,7 @@ Data::Trace - Trace when a data structure gets updated.
 
 =cut
 
-our @EXPORT = qw( Trace );
+our @EXPORT  = qw( Trace );
 our $VERSION = '0.16';
 
 =head1 SYNOPSIS
@@ -65,7 +65,7 @@ sub _TieNodes {
     }
 
     my @nodes = grep { ref } Data::DPath->match( $data, "//" );
-    my %args = $class->_DefineWatchArgs();
+    my %args  = $class->_DefineWatchArgs();
 
     for my $node ( @nodes ) {
         $node = Data::Tie::Watch->new(
