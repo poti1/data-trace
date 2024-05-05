@@ -271,16 +271,15 @@ sub _build_obj {
     $watch_obj->{id}   = "$watch_obj";
     $watch_obj->{type} = $type;
 
-    weaken $watch_obj->{-variable};
+  # weaken $watch_obj->{-variable};
 
     $watch_obj;
 }
 
 # Clean up global cache.
 sub DESTROY {
-    my ( $watch_obj ) = @_;
-    $watch_obj->callback( '-destroy' );
-    delete $METHODS{"$watch_obj"};
+    $_[0]->callback( '-destroy' );
+    delete $METHODS{"$_[0]"};
 }
 
 # Stop watching a variable by releasing the last reference and untieing it.
@@ -288,8 +287,8 @@ sub DESTROY {
 #
 # $_[0] = self
 
-# Not used apparently.
 sub Unwatch {
+    trace;
     my $var = $_[0]->{-variable};
     return if not $var;
 
@@ -297,21 +296,26 @@ sub Unwatch {
     return if not $type;
 
     my $copy;
-
     $copy = $_[0]->{-ptr} if $type !~ /(SCALAR|REF)/;
     my $shadow = $_[0]->{-shadow};
     undef $_[0];
 
     if ( $type =~ /(SCALAR|REF)/ ) {
+        say "untie scalar";
         untie $$var;
     }
     elsif ( $type =~ /ARRAY/ ) {
+        say "untie array";
         untie @$var;
         @$var = @$copy if $shadow;
     }
     elsif ( $type =~ /HASH/ ) {
+        say "untie hash";
         untie %$var;
+        say "copy:";
+        d $copy;
         %$var = %$copy if $shadow;
+        return;
     }
     else {
         croak "not a variable reference.";
@@ -343,22 +347,22 @@ sub base_watch {
 =cut
 
 sub callback {
-    my ( $watch_obj, $mkey, %args ) = @_;
+    my ( $watch_obj, $mkey, @args ) = @_;
     my $id =
         $watch_obj->{-clone}
       ? $watch_obj->{id}
       : "$watch_obj";
 
     if ( $METHODS{$id} && $METHODS{$id}{$mkey} ) {
-        print "GOT METHOD: $mkey\n";
+        print "GOT METHOD: $mkey (@args)\n";
         print "  $watch_obj\n";
-        return $METHODS{$id}{$mkey}->( $watch_obj, %args, );
+        return $METHODS{$id}{$mkey}->( $watch_obj, @args, );
     }
 
     my $method_name = $mkey =~ s/^-(\w+)/\L\u$1/r;
     my $method      = sprintf( "Data::Tie::Watch::%s::%s",
         "\L\u$watch_obj->{type}\E", $method_name, );
-    print "NO METHOD: $mkey\n";
+    print "NO METHOD: $mkey (@args)\n";
     print "  $watch_obj\n";
     print "  $method\n";
 
@@ -366,13 +370,30 @@ sub callback {
     my @return;
     {
         no strict 'refs';
-        @return = $method->( $watch_obj, %args );
+        say "run $mkey (@args)";
+        @return = $method->( $watch_obj, @args );
     }
+
+    say "return:";
+    d \@return;
 
     # Untie.
     # Do NOT run any callback methods after this
     # point in order to avoid SEGMENTATION errors!
   # $watch_obj->Unwatch();
+    my $var  = $watch_obj->{-variable};
+    my $copy = $watch_obj->{-ptr};
+    
+  # say "untie hash";    
+    untie %$var;
+    
+    say "copy:";
+    d $copy;
+
+    %$var = %$copy;
+
+  # say "var:";
+  # d $var;
 
     return @return if wantarray;
     return $return[0];
