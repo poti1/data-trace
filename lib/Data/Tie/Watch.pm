@@ -350,13 +350,15 @@ sub callback {
       : "$watch_obj";
 
     if ( $METHODS{$id} && $METHODS{$id}{$mkey} ) {
+        print "GOT METHOD: $mkey\n";
+        print "  $watch_obj\n";
         return $METHODS{$id}{$mkey}->( $watch_obj, %args, );
     }
 
     my $method_name = $mkey =~ s/^-(\w+)/\L\u$1/r;
     my $method      = sprintf( "Data::Tie::Watch::%s::%s",
         "\L\u$watch_obj->{type}\E", $method_name, );
-    print "NO METHOD:\n";
+    print "NO METHOD: $mkey\n";
     print "  $watch_obj\n";
     print "  $method\n";
 
@@ -370,7 +372,7 @@ sub callback {
     # Untie.
     # Do NOT run any callback methods after this
     # point in order to avoid SEGMENTATION errors!
-    $watch_obj->Unwatch();
+  # $watch_obj->Unwatch();
 
     return @return if wantarray;
     return $return[0];
