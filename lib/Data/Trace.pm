@@ -60,18 +60,19 @@ sub Trace {
 
 sub _TieNodes {
     my ( $class, $data, @args ) = @_;
-    trace;
+  # trace;
 
     if ( not ref $data ) {
         die "Error: data must be a reference!";
     }
 
-    my @nodes   = grep { ref } Data::DPath->match( $data, "//" );
+    my @refs    = grep { ref } Data::DPath->match( $data, "//" );
     my %watches = $class->_BuildWatcherMethods();
+    my @nodes;
 
-    for my $node ( @nodes ) {
-        $node = Data::Tie::Watch->new(
-            -variable => $node,
+    for my $ref ( @refs ) {
+        push @nodes, Data::Tie::Watch->new(
+            -variable => $ref,
             %watches,
             @args,
         );

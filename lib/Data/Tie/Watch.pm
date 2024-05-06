@@ -271,13 +271,15 @@ sub _build_obj {
     $watch_obj->{id}   = "$watch_obj";
     $watch_obj->{type} = $type;
 
-    # weaken $watch_obj->{-variable};
+  # weaken $watch_obj->{-variable};
 
     $watch_obj;
 }
 
 # Clean up global cache.
 sub DESTROY {
+  # trace;
+  # say "watch_obj: $_[0]";
     $_[0]->callback( '-destroy' );
     delete $METHODS{"$_[0]"};
 }
@@ -288,8 +290,7 @@ sub DESTROY {
 # $_[0] = self
 
 sub Unwatch {
-
-    #  trace;
+  # trace;
     my $var = $_[0]->{-variable};
     return if not $var;
 
