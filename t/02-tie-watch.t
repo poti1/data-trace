@@ -460,15 +460,15 @@ sub _define_cases_hash_clone {
                 -variable => \%test_hash,
             },
             actions => sub {
-                $clone       = Storable::dclone( \%test_hash );
-                $$clone      = "cloned_test_hash";
-                $test_hash{test} = 'updated_test_hash2';
+                $clone           = Storable::dclone( \%test_hash );
+                $clone->{test}   = "cloned_test_hash3";
+                $test_hash{test} = 'updated_test_hash3';
             },
             expected => {
                 watch_obj => 1,
                 stdout    => "",
-                value     => {qw( test 42 )},
-                clone     => {qw( test 42 )},
+                value     => {qw( test updated_test_hash3 )},
+                clone     => {qw( test cloned_test_hash3 )},
             },
         },
         {
@@ -478,15 +478,15 @@ sub _define_cases_hash_clone {
                 -fetch    => sub { 42 },
             },
             actions => sub {
-                $clone       = Storable::dclone( \%test_hash );
-                $$clone      = $$clone;
-                $test_hash{var} = $test_hash{var};
+                $clone           = Storable::dclone( \%test_hash );
+                $clone->{test}   = "cloned_test_hash3";
+                $test_hash{test} = 'updated_test_hash3';
             },
             expected => {
                 watch_obj => 1,
                 stdout    => "",
-                value     => {qw( test hash var updated_test_hash )},
-                clone     => {qw( test hash var updated_test_hash )},
+                value     => {qw( test 42 )},
+                clone     => {qw( test 42 )},
             },
         },
         {
@@ -496,15 +496,15 @@ sub _define_cases_hash_clone {
                 -store    => sub { shift->Store( shift, 43 ) },
             },
             actions => sub {
-                $clone  = Storable::dclone( \%test_hash );
-                $$clone = "new clone value",
-                  $test_hash{var} = "updated_test_hash";
+                $clone           = Storable::dclone( \%test_hash );
+                $clone->{test}   = "cloned_test_hash3";
+                $test_hash{test} = 'updated_test_hash3';
             },
             expected => {
                 watch_obj => 1,
                 stdout    => "",
-                value     => {qw( test hash var updated_test_hash )},
-                clone     => {qw( test hash var updated_test_hash )},
+                value     => {qw( test 43 )},
+                clone     => {qw( test 43 )},
             },
         },
     )
@@ -519,15 +519,15 @@ sub _define_cases_hash_no_clone {
                 -clone    => 0,
             },
             actions => sub {
-                $clone       = Storable::dclone( \%test_hash );
-                $$clone      = "cloned_test_hash";
-                $test_hash{var} = 'updated_test_hash2';
+                $clone           = Storable::dclone( \%test_hash );
+                $clone->{test}   = "cloned_test_hash4";
+                $test_hash{test} = 'updated_test_hash4';
             },
             expected => {
                 watch_obj => 1,
                 stdout    => "",
-                value     => {qw( test hash var updated_test_hash )},
-                clone     => {qw( test hash var updated_test_hash )},
+                value     => {qw( test updated_test_hash4 )},
+                clone     => {qw( test cloned_test_hash4 )},
             },
         },
         {
@@ -538,15 +538,15 @@ sub _define_cases_hash_no_clone {
                 -clone    => 0,
             },
             actions => sub {
-                $clone       = Storable::dclone( \%test_hash );
-                $$clone      = $$clone;
-                $test_hash{var} = $test_hash{var};
+                $clone           = Storable::dclone( \%test_hash );
+                $clone->{test}   = "cloned_test_hash5";
+                $test_hash{test} = 'updated_test_hash5';
             },
             expected => {
                 watch_obj => 1,
                 stdout    => "",
-                value     => {qw( test hash var updated_test_hash )},
-                clone     => {qw( test hash var updated_test_hash )},
+                value     => {qw( test 42 )},
+                clone     => {qw( test cloned_test_hash5 )},
             },
         },
         {
@@ -557,22 +557,19 @@ sub _define_cases_hash_no_clone {
                 -clone    => 0,
             },
             actions => sub {
-                $clone  = Storable::dclone( \%test_hash );
-                $$clone = "new clone value",
-                  $test_hash{var} = "updated_test_hash";
+                $clone           = Storable::dclone( \%test_hash );
+                $clone->{test}   = "cloned_test_hash6";
+                $test_hash{test} = 'updated_test_hash6';
             },
             expected => {
                 watch_obj => 1,
                 stdout    => "",
-                value     => {qw( test hash var updated_test_hash )},
-                clone     => {qw( test hash var updated_test_hash )},
+                value     => {qw( test 43 )},
+                clone     => {qw( test cloned_test_hash6 )},
             },
         },
     )
 }
-
-
-# Hash
 
 my @cases = (
 
