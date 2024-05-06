@@ -230,7 +230,7 @@ sub _build_methods {
             -splice    => \&Data::Tie::Watch::Array::Splice,
             -store     => \&Data::Tie::Watch::Array::Store,
             -storesize => \&Data::Tie::Watch::Array::Storesize,
-            -unshift   => \&Data::Tie::Watch::Array::Unshif,
+            -unshift   => \&Data::Tie::Watch::Array::Unshift,
         );
     }
     elsif ( $type =~ /HASH/ ) {
@@ -242,7 +242,7 @@ sub _build_methods {
             -fetch    => \&Data::Tie::Watch::Hash::Fetch,
             -firstkey => \&Data::Tie::Watch::Hash::Firstkey,
             -nextkey  => \&Data::Tie::Watch::Hash::Nextkey,
-            -store    => \&Data::Tie::Watch::Hash::Stor,
+            -store    => \&Data::Tie::Watch::Hash::Store,
         );
     }
     else {
@@ -271,7 +271,7 @@ sub _build_obj {
     $watch_obj->{id}   = "$watch_obj";
     $watch_obj->{type} = $type;
 
-  # weaken $watch_obj->{-variable};
+    # weaken $watch_obj->{-variable};
 
     $watch_obj;
 }
@@ -288,7 +288,8 @@ sub DESTROY {
 # $_[0] = self
 
 sub Unwatch {
-    trace;
+
+    #  trace;
     my $var = $_[0]->{-variable};
     return if not $var;
 
@@ -301,19 +302,23 @@ sub Unwatch {
     undef $_[0];
 
     if ( $type =~ /(SCALAR|REF)/ ) {
-        say "untie scalar";
+
+        #      say "untie scalar";
         untie $$var;
     }
     elsif ( $type =~ /ARRAY/ ) {
-        say "untie array";
+
+        #      say "untie array";
         untie @$var;
         @$var = @$copy if $shadow;
     }
     elsif ( $type =~ /HASH/ ) {
-        say "untie hash";
+
+        #      say "untie hash";
         untie %$var;
-        say "copy:";
-        d $copy;
+
+        #      say "copy:";
+        #      d $copy;
         %$var = %$copy if $shadow;
         return;
     }
@@ -354,46 +359,37 @@ sub callback {
       : "$watch_obj";
 
     if ( $METHODS{$id} && $METHODS{$id}{$mkey} ) {
-        print "GOT METHOD: $mkey (@args)\n";
-        print "  $watch_obj\n";
-        return $METHODS{$id}{$mkey}->( $watch_obj, @args, );
+      # print "GOT METHOD: $mkey (@args)\n";
+      # print "  $watch_obj\n";
+      # print "  $METHODS{$id}{$mkey}\n";
+      # p \@args;
+        return $METHODS{$id}{$mkey}->( $watch_obj, @args );
     }
 
     my $method_name = $mkey =~ s/^-(\w+)/\L\u$1/r;
     my $method      = sprintf( "Data::Tie::Watch::%s::%s",
-        "\L\u$watch_obj->{type}\E", $method_name, );
-    print "NO METHOD: $mkey (@args)\n";
-    print "  $watch_obj\n";
-    print "  $method\n";
+        "\L\u$watch_obj->{type}\E", $method_name );
+
+      # print "NO METHOD: $mkey (@args)\n";
+      # print "  $watch_obj\n";
+      # print "  $method\n";
 
     # Should also finish its current action.
     my @return;
     {
         no strict 'refs';
-        say "run $mkey (@args)";
+
+        #       say "run $mkey (@args)";
         @return = $method->( $watch_obj, @args );
     }
 
-    say "return:";
-    d \@return;
+    #   say "return:";
+    #   d \@return;
 
     # Untie.
     # Do NOT run any callback methods after this
     # point in order to avoid SEGMENTATION errors!
-  # $watch_obj->Unwatch();
-    my $var  = $watch_obj->{-variable};
-    my $copy = $watch_obj->{-ptr};
-    
-  # say "untie hash";    
-    untie %$var;
-    
-    say "copy:";
-    d $copy;
-
-    %$var = %$copy;
-
-  # say "var:";
-  # d $var;
+    $watch_obj->Unwatch();
 
     return @return if wantarray;
     return $return[0];
