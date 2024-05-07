@@ -22,7 +22,7 @@ provides:
     version: '0.16'
 requires:
   Data::DPath: '0.58'
-  perl: '5.006'
+  perl: '5.012'
 resources:
   bugtracker: https://github.com/poti1/data-trace/issues
   license: http://www.perlfoundation.org/artistic_license_2_0
