@@ -32,6 +32,8 @@ our $VERSION = '0.16';
     Trace($data);
     BadCall();  # Shows strack trace of where data was changed.
 
+=cut
+
 =head1 DESCRIPTION
 
 This module provides a convienient way to find out
@@ -42,6 +44,8 @@ alteration to data structures which should be treated as read-only.
 
 Probably can also create a variable as read-only in Moose and see where
 its been changed, but this module is without Moose support.
+
+=cut
 
 =head1 SUBROUTINES/METHODS
 

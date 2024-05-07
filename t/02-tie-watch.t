@@ -48,7 +48,7 @@ sub reset_vars {
 #               Cases
 ###########################################
 
-# Error
+# User Errors
 sub _define_cases_error {
     (
         {
@@ -571,9 +571,73 @@ sub _define_cases_hash_no_clone {
     )
 }
 
+# Segmentation Faults
+
+sub _define_cases_segmentation {
+    (
+        {
+            name => "segv fault",
+            args => {
+                -variable => \%test_hash,
+                -clone    => 0,
+            },
+            actions => sub {
+                $clone           = Storable::dclone( \%test_hash );
+              # $clone->{test}   = "cloned_test_hash4";
+              # $test_hash{test} = 'updated_test_hash4';
+                1 for keys %$clone;
+            },
+            expected => {
+                watch_obj => 1,
+                stdout    => "",
+                value     => {qw( test updated_test_hash4 )},
+                clone     => {qw( test cloned_test_hash4 )},
+            },
+        },
+        {
+            name => "segv fault - fetch",
+            args => {
+                -variable => \%test_hash,
+                -fetch    => sub { 42 },
+                -clone    => 0,
+            },
+            actions => sub {
+                $clone           = Storable::dclone( \%test_hash );
+                $clone->{test}   = "cloned_test_hash5";
+                $test_hash{test} = 'updated_test_hash5';
+            },
+            expected => {
+                watch_obj => 1,
+                stdout    => "",
+                value     => {qw( test 42 )},
+                clone     => {qw( test cloned_test_hash5 )},
+            },
+        },
+        {
+            name => "segv fault - store",
+            args => {
+                -variable => \%test_hash,
+                -store    => sub { shift->Store( shift, 43 ) },
+                -clone    => 0,
+            },
+            actions => sub {
+                $clone           = Storable::dclone( \%test_hash );
+                $clone->{test}   = "cloned_test_hash6";
+                $test_hash{test} = 'updated_test_hash6';
+            },
+            expected => {
+                watch_obj => 1,
+                stdout    => "",
+                value     => {qw( test 43 )},
+                clone     => {qw( test cloned_test_hash6 )},
+            },
+        },
+    )
+}
+
 my @cases = (
 
-    # Error
+    # User Errors
     _define_cases_error(),
 
     # Scalar
@@ -591,6 +655,8 @@ my @cases = (
     _define_cases_hash_clone(),
     _define_cases_hash_no_clone(),
 
+    # Segmentation Faults
+    _define_cases_segmentation(),
 );
 
 for my $case ( @cases ) {

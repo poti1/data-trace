@@ -121,8 +121,8 @@ B<-exists>, B<-firstkey> and B<-nextkey>.
 sub new {
     my $class = shift;
     my %args  = (
-#       -shadow => 1,
-#       -clone  => 1,    # Clones are also watched.
+        -shadow => 1,
+        -clone  => 1,    # Clones are also watched.
         @_,
     );
 
@@ -132,7 +132,8 @@ sub new {
     for ( keys %args ) {
 
         # Skip -shadow like options.
-        next if reftype( $args{$_} ) ne "CODE";
+        my $type = reftype( $args{$_} ) // '';
+        next if $type ne "CODE";
 
         if ( $methods->{$_} ) {
 
@@ -155,7 +156,7 @@ sub new {
 sub _build_methods {
     my ( $class, %args ) = @_;
     my $var  = $args{-variable};
-    my $type = reftype( $var );
+    my $type = reftype( $var ) // '';
     my %methods;
 
     if ( $type =~ /(SCALAR|REF)/ ) {
@@ -205,7 +206,7 @@ sub _build_methods {
 sub _build_obj {
     my ( $class, %args ) = @_;
     my $var  = $args{-variable};
-    my $type = reftype( $var );
+    my $type = reftype( $var ) // '';
     my $watch_obj;
 
     if ( $type =~ /(SCALAR|REF)/ ) {
@@ -233,11 +234,11 @@ Clean up global cache.
 =cut
 
 sub DESTROY {
-  # trace;
+  # trace(5);
   # say "watch_obj: $_[0]";
     $_[0]->callback( '-destroy' );
-    delete $METHODS{"$_[0]"};
   # $_[0]->Unwatch();
+    delete $METHODS{"$_[0]"};
 }
 
 =head2 Unwatch
@@ -251,19 +252,15 @@ if appropriate.
 =cut
 
 sub Unwatch {
-  # trace;
     my $var = $_[0]->{-variable};
     return if not $var;
 
-    my $type = reftype( $var );
+    my $type = reftype( $var ) // '';
     return if not $type;
-
-  # say "\nUnWatch var1:";
-  # dd $var;
 
     my $copy;
     $copy = $_[0]->{-ptr} if $type !~ /(SCALAR|REF)/;
-    my $shadow = 1; # $_[0]->{-shadow};
+    my $shadow = $_[0]->{-shadow};
     undef $_[0];
 
     if ( $type =~ /(SCALAR|REF)/ ) {
@@ -275,15 +272,11 @@ sub Unwatch {
     }
     elsif ( $type =~ /HASH/ ) {
         untie %$var;
-  #     %$var = %$copy if $shadow;
+        %$var = %$copy if $shadow;
     }
     else {
         croak "not a variable reference.";
     }
-    
-  # say "\nUnWatch var2:";
-  # dd $var;
-  # p $var;
 }
 
 =head2 base_watch
@@ -316,7 +309,6 @@ sub callback {
         $watch_obj->{-clone}
       ? $watch_obj->{id}
       : "$watch_obj";
-  # my $id = "$watch_obj->{id}";
 
     if ( $METHODS{$id} && $METHODS{$id}{$mkey} ) {
       # print "GOT METHOD: $mkey (@args)\n";
@@ -343,10 +335,8 @@ sub callback {
         @return = $method->( $watch_obj, @args );
     }
 
-    #   say "return:";
-    #   d \@return;
-
     $_[0]->Unwatch();
+
     return @return if wantarray;
     return $return[0];
 }
