@@ -34,11 +34,11 @@
    "provides" : {
       "Data::Tie::Watch" : {
          "file" : "lib/Data/Tie/Watch.pm",
-         "version" : "1.302"
+         "version" : "v1.302.1"
       },
       "Data::Trace" : {
          "file" : "lib/Data/Trace.pm",
-         "version" : "0.15"
+         "version" : "0.16"
       }
    },
    "release_status" : "stable",
@@ -53,6 +53,6 @@
          "url" : "https://github.com/poti1/data-trace"
       }
    },
-   "version" : "0.15",
+   "version" : "0.16",
    "x_serialization_backend" : "JSON::PP version 4.04"
 }

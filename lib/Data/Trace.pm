@@ -18,7 +18,6 @@ use Data::DPath;         # All refs in a struct.
 use Carp();
 use parent  qw( Exporter );
 use feature qw( say );
-use e;
 
 our @EXPORT  = qw( Trace );
 our $VERSION = '0.16';
@@ -64,7 +63,6 @@ sub Trace {
 
 sub _TieNodes {
     my ( $class, $data, @args ) = @_;
-  # trace;
 
     if ( not ref $data ) {
         die "Error: data must be a reference!";
@@ -75,11 +73,12 @@ sub _TieNodes {
     my @nodes;
 
     for my $ref ( @refs ) {
-        push @nodes, Data::Tie::Watch->new(
+        push @nodes,
+          Data::Tie::Watch->new(
             -variable => $ref,
             %watches,
             @args,
-        );
+          );
     }
 
     @nodes;

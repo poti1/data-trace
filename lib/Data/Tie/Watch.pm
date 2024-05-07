@@ -11,7 +11,6 @@ use strict;
 use warnings;
 use Carp;
 use Scalar::Util qw( reftype weaken );
-use e;
 
 our $VERSION = '1.302.1';
 our %METHODS;
@@ -74,12 +73,12 @@ becomes Fetch, NEXTKEY becomes Nextkey, etcetera.
 
 =head1 SUBROUTINES/METHODS
 
-=item $watch->Fetch();  $watch->Fetch($key);
+    $watch->Fetch();  $watch->Fetch($key);
 
 Returns a variable's current value.  $key is required for an array or
 hash.
 
-=item $watch->Store($new_val);  $watch->Store($key, $new_val);
+    $watch->Store($new_val);  $watch->Store($key, $new_val);
 
 Store a variable's new value.  $key is required for an array or hash.
 
@@ -222,7 +221,7 @@ sub _build_obj {
     $watch_obj->{id}   = "$watch_obj";
     $watch_obj->{type} = $type;
 
-  # weaken $watch_obj->{-variable};
+    # weaken $watch_obj->{-variable};
 
     $watch_obj;
 }
@@ -231,13 +230,16 @@ sub _build_obj {
 
 Clean up global cache.
 
+Note: Originally the 'Unwatch()' method call was placed at just before the
+return of 'callback()' which appeared to be the logical place for it.
+However it would occasionally provoke a segmentation fault (possibly
+indirectly).
+
 =cut
 
 sub DESTROY {
-  # trace(5);
-  # say "watch_obj: $_[0]";
     $_[0]->callback( '-destroy' );
-  # $_[0]->Unwatch();
+    $_[0]->Unwatch();
     delete $METHODS{"$_[0]"};
 }
 
@@ -311,10 +313,6 @@ sub callback {
       : "$watch_obj";
 
     if ( $METHODS{$id} && $METHODS{$id}{$mkey} ) {
-      # print "GOT METHOD: $mkey (@args)\n";
-      # print "  $watch_obj\n";
-      # print "  $METHODS{$id}{$mkey}\n";
-      # p \@args;
         return $METHODS{$id}{$mkey}->( $watch_obj, @args );
     }
 
@@ -322,20 +320,12 @@ sub callback {
     my $method      = sprintf( "Data::Tie::Watch::%s::%s",
         "\L\u$watch_obj->{type}\E", $method_name );
 
-      # print "NO METHOD: $mkey (@args)\n";
-      # print "  $watch_obj\n";
-      # print "  $method\n";
-
     # Should also finish its current action.
     my @return;
     {
         no strict 'refs';
-
-        #       say "run $mkey (@args)";
         @return = $method->( $watch_obj, @args );
     }
-
-    $_[0]->Unwatch();
 
     return @return if wantarray;
     return $return[0];

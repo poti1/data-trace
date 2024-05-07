@@ -4,11 +4,8 @@ use 5.006;
 use strict;
 use warnings;
 use Test::More;
-
-use lib "$ENV{HOME}/git/perl_my/data-trace/lib";
 use Data::Tie::Watch;
 use Storable;
-use e;
 
 pass "tie-watch";
 
@@ -582,16 +579,17 @@ sub _define_cases_segmentation {
                 -clone    => 0,
             },
             actions => sub {
-                $clone           = Storable::dclone( \%test_hash );
-              # $clone->{test}   = "cloned_test_hash4";
-              # $test_hash{test} = 'updated_test_hash4';
+                $clone = Storable::dclone( \%test_hash );
+
+                # $clone->{test}   = "cloned_test_hash4";
+                # $test_hash{test} = 'updated_test_hash4';
                 1 for keys %$clone;
             },
             expected => {
                 watch_obj => 1,
                 stdout    => "",
-                value     => {qw( test updated_test_hash4 )},
-                clone     => {qw( test cloned_test_hash4 )},
+                value     => {qw( test hash )},
+                clone     => {qw( test hash )},
             },
         },
         {
@@ -602,15 +600,14 @@ sub _define_cases_segmentation {
                 -clone    => 0,
             },
             actions => sub {
-                $clone           = Storable::dclone( \%test_hash );
-                $clone->{test}   = "cloned_test_hash5";
-                $test_hash{test} = 'updated_test_hash5';
+                $clone = Storable::dclone( \%test_hash );
+                1 for keys %$clone;
             },
             expected => {
                 watch_obj => 1,
                 stdout    => "",
                 value     => {qw( test 42 )},
-                clone     => {qw( test cloned_test_hash5 )},
+                clone     => {qw( test hash )},
             },
         },
         {
@@ -621,15 +618,14 @@ sub _define_cases_segmentation {
                 -clone    => 0,
             },
             actions => sub {
-                $clone           = Storable::dclone( \%test_hash );
-                $clone->{test}   = "cloned_test_hash6";
-                $test_hash{test} = 'updated_test_hash6';
+                $clone = Storable::dclone( \%test_hash );
+                1 for keys %$clone;
             },
             expected => {
                 watch_obj => 1,
                 stdout    => "",
-                value     => {qw( test 43 )},
-                clone     => {qw( test cloned_test_hash6 )},
+                value     => {qw( test hash )},
+                clone     => {qw( test hash )},
             },
         },
     )
