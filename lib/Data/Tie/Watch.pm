@@ -1,10 +1,20 @@
-$Data::Tie::Watch::VERSION = '1.302';
-
 package Data::Tie::Watch;
 
 =head1 NAME
 
  Data::Tie::Watch - place watchpoints on Perl variables.
+
+=cut
+
+use 5.006;
+use strict;
+use warnings;
+use Carp;
+use Scalar::Util qw( reftype weaken );
+use e;
+
+our $VERSION = '1.302.1';
+our %METHODS;
 
 =head1 SYNOPSIS
 
@@ -20,6 +30,8 @@ package Data::Tie::Watch;
  $val   = $watch->Fetch;
  $watch->Store('Hello');
  $watch->Unwatch;
+
+=cut
 
 =head1 DESCRIPTION
 
@@ -58,11 +70,29 @@ To map a tied method name to a default callback name simply lowercase
 the tied method name and uppercase its first character.  So FETCH
 becomes Fetch, NEXTKEY becomes Nextkey, etcetera.
 
-=head1 METHODS
+=cut
 
-=over 4
+=head1 SUBROUTINES/METHODS
 
-=item $watch = Data::Tie::Watch->new(-options => values);
+=item $watch->Fetch();  $watch->Fetch($key);
+
+Returns a variable's current value.  $key is required for an array or
+hash.
+
+=item $watch->Store($new_val);  $watch->Store($key, $new_val);
+
+Store a variable's new value.  $key is required for an array or hash.
+
+=cut
+
+=head2 new
+
+Watch constructor.
+
+The *real* constructor is Data::Tie::Watch->base_watch(),
+invoked by methods in other Watch packages, depending upon the variable's
+type.  Here we supply defaulted parameter values and then verify them,
+normalize all callbacks and bind the variable to the appropriate package.
 
 The watchpoint constructor method that accepts option/value pairs to
 create and configure the Watch object.  The only required option is
@@ -86,93 +116,13 @@ B<-pop>, B<-push>, B<-shift>, B<-splice>, B<-storesize> and
 B<-unshift>.  Additionally for hashes: B<-clear>, B<-delete>,
 B<-exists>, B<-firstkey> and B<-nextkey>.
 
-=item $watch->Fetch();  $watch->Fetch($key);
-
-Returns a variable's current value.  $key is required for an array or
-hash.
-
-=item $watch->Store($new_val);  $watch->Store($key, $new_val);
-
-Store a variable's new value.  $key is required for an array or hash.
-
-=item $watch->Unwatch();
-
-Stop watching the variable.
-
-=back
-
-=head1 EFFICIENCY CONSIDERATIONS
-
-If you can live using the class methods provided, please do so.  You
-can meddle with the object hash directly and improved watch
-performance, at the risk of your code breaking in the future.
-
-=head1 AUTHOR
-
-Stephen O. Lidie
-
-=head1 HISTORY
-
- lusol@Lehigh.EDU, LUCC, 96/05/30
- . Original version 0.92 release, based on the Trace module from Hans Mulder,
-   and ideas from Tim Bunce.
-
- lusol@Lehigh.EDU, LUCC, 96/12/25
- . Version 0.96, release two inner references detected by Perl 5.004.
-
- lusol@Lehigh.EDU, LUCC, 97/01/11
- . Version 0.97, fix Makefile.PL and MANIFEST (thanks Andreas Koenig).
-   Make sure test.pl doesn't fail if Tk isn't installed.
-
- Stephen.O.Lidie@Lehigh.EDU, Lehigh University Computing Center, 97/10/03
- . Version 0.98, implement -shadow option for arrays and hashes.
-
- Stephen.O.Lidie@Lehigh.EDU, Lehigh University Computing Center, 98/02/11
- . Version 0.99, finally, with Perl 5.004_57, we can completely watch arrays.
-   With tied array support this module is essentially complete, so its been
-   optimized for speed at the expense of clarity - sorry about that. The
-   Delete() method has been renamed Unwatch() because it conflicts with the
-   builtin delete().
-
- Stephen.O.Lidie@Lehigh.EDU, Lehigh University Computing Center, 99/04/04
- . Version 1.0, for Perl 5.005_03, update Makefile.PL for ActiveState, and
-   add two examples (one for Perl/Tk).
-
- sol0@lehigh.edu, Lehigh University Computing Center, 2003/06/07
- . Version 1.1, for Perl 5.8, can trace a reference now, patch from Slaven
-   Rezic.
-
- sol0@lehigh.edu, Lehigh University Computing Center, 2005/05/17
- . Version 1.2, for Perl 5.8, per Rob Seegel's suggestion, support array
-   DELETE and EXISTS.
-
-=head1 COPYRIGHT
-
-Copyright (C) 1996 - 2005 Stephen O. Lidie. All rights reserved.
-
-This program is free software; you can redistribute it and/or modify it under
-the same terms as Perl itself.
-
 =cut
-
-use 5.004_57;
-use Carp;
-use strict;
-use Scalar::Util qw( reftype weaken );
-use e;
-
-our %METHODS;
-
-# Watch constructor.  The *real* constructor is Data::Tie::Watch->base_watch(),
-# invoked by methods in other Watch packages, depending upon the variable's
-# type.  Here we supply defaulted parameter values and then verify them,
-# normalize all callbacks and bind the variable to the appropriate package.
 
 sub new {
     my $class = shift;
     my %args  = (
-        -shadow => 1,
-        -clone  => 1,    # Clones are also watched.
+#       -shadow => 1,
+#       -clone  => 1,    # Clones are also watched.
         @_,
     );
 
@@ -276,18 +226,29 @@ sub _build_obj {
     $watch_obj;
 }
 
-# Clean up global cache.
+=head2 DESTROY
+
+Clean up global cache.
+
+=cut
+
 sub DESTROY {
   # trace;
   # say "watch_obj: $_[0]";
     $_[0]->callback( '-destroy' );
     delete $METHODS{"$_[0]"};
+  # $_[0]->Unwatch();
 }
 
-# Stop watching a variable by releasing the last reference and untieing it.
-# Update the original variable with its shadow, if appropriate.
-#
-# $_[0] = self
+=head2 Unwatch
+
+Stop watching a variable by releasing the last
+reference and untieing it.
+
+Updates the original variable with its shadow,
+if appropriate.
+
+=cut
 
 sub Unwatch {
   # trace;
@@ -297,35 +258,32 @@ sub Unwatch {
     my $type = reftype( $var );
     return if not $type;
 
+  # say "\nUnWatch var1:";
+  # dd $var;
+
     my $copy;
     $copy = $_[0]->{-ptr} if $type !~ /(SCALAR|REF)/;
-    my $shadow = $_[0]->{-shadow};
+    my $shadow = 1; # $_[0]->{-shadow};
     undef $_[0];
 
     if ( $type =~ /(SCALAR|REF)/ ) {
-
-        #      say "untie scalar";
         untie $$var;
     }
     elsif ( $type =~ /ARRAY/ ) {
-
-        #      say "untie array";
         untie @$var;
         @$var = @$copy if $shadow;
     }
     elsif ( $type =~ /HASH/ ) {
-
-        #      say "untie hash";
         untie %$var;
-
-        #      say "copy:";
-        #      d $copy;
-        %$var = %$copy if $shadow;
-        return;
+  #     %$var = %$copy if $shadow;
     }
     else {
         croak "not a variable reference.";
     }
+    
+  # say "\nUnWatch var2:";
+  # dd $var;
+  # p $var;
 }
 
 =head2 base_watch
@@ -358,6 +316,7 @@ sub callback {
         $watch_obj->{-clone}
       ? $watch_obj->{id}
       : "$watch_obj";
+  # my $id = "$watch_obj->{id}";
 
     if ( $METHODS{$id} && $METHODS{$id}{$mkey} ) {
       # print "GOT METHOD: $mkey (@args)\n";
@@ -387,11 +346,7 @@ sub callback {
     #   say "return:";
     #   d \@return;
 
-    # Untie.
-    # Do NOT run any callback methods after this
-    # point in order to avoid SEGMENTATION errors!
-    $watch_obj->Unwatch();
-
+    $_[0]->Unwatch();
     return @return if wantarray;
     return $return[0];
 }
@@ -522,5 +477,32 @@ sub FETCH    { $_[0]->callback( '-fetch',  $_[1] ) }
 sub FIRSTKEY { $_[0]->callback( '-firstkey' ) }
 sub NEXTKEY  { $_[0]->callback( '-nextkey' ) }
 sub STORE    { $_[0]->callback( '-store', $_[1], $_[2] ) }
+
+=head1 EFFICIENCY CONSIDERATIONS
+
+If you can live with using the class methods provided, please do so.
+You can meddle with the object hash directly and improve watch
+performance, at the risk of your code breaking in the future.
+
+=cut
+
+=head1 AUTHOR
+
+Originally: Stephen O. Lidie
+
+Currently: Tim Potapov, C<< <tim.potapov at gmail.com> >>
+
+=head1 COPYRIGHT
+
+Copyright (C) 1996 - 2005 Stephen O. Lidie. All rights reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the same terms as Perl itself.
+
+This is free software, licensed under:
+
+    The Artistic License 2.0 (GPL Compatible)
+
+=cut
 
 1;

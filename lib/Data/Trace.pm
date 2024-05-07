@@ -1,5 +1,11 @@
 package Data::Trace;
 
+=head1 NAME
+
+Data::Trace - Trace when a data structure gets updated.
+
+=cut
+
 use 5.006;
 use strict;
 use warnings;
@@ -14,12 +20,6 @@ use parent  qw( Exporter );
 use feature qw( say );
 use e;
 
-=head1 NAME
-
-Data::Trace - Trace when a data structure gets updated.
-
-=cut
-
 our @EXPORT  = qw( Trace );
 our $VERSION = '0.16';
 
@@ -29,7 +29,7 @@ our $VERSION = '0.16';
 
     my $data = {a => [0, {complex => 1}]};
     sub BadCall{ $data->{a}[0] = 1 }
-    Data::Trace->Trace($data);
+    Trace($data);
     BadCall();  # Shows strack trace of where data was changed.
 
 =head1 DESCRIPTION
@@ -47,10 +47,10 @@ its been changed, but this module is without Moose support.
 
 =head2 Trace
 
- Data::Trace->Trace( \$scalar );
- Data::Trace->Trace( \@array );
- Data::Trace->Trace( \@hash );
- Data::Trace->Trace( $complex_data );
+ Trace( \$scalar );
+ Trace( \@array );
+ Trace( \@hash );
+ Trace( $complex_data );
 
 =cut
 
@@ -174,16 +174,14 @@ You can find documentation for this module with the perldoc command.
 
     perldoc Data::Trace
 
-
 =head1 LICENSE AND COPYRIGHT
 
-This software is Copyright (c) 2022 by Tim Potapov.
+This software is Copyright (c) 2024 by Tim Potapov.
 
 This is free software, licensed under:
 
   The Artistic License 2.0 (GPL Compatible)
 
-
 =cut
 
-1;    # End of Data::Trace
+1;
