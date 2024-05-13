@@ -26,7 +26,6 @@ jobs:
 
       - name: Install dependencies
         run: |
-          apt install -y libreadline-dev
           cpanm Module::Build~0.4004
           cpanm Test::CheckManifest
           perl Build.PL

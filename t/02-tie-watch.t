@@ -7,7 +7,7 @@ use Test::More;
 use Data::Tie::Watch;
 use Storable;
 
-pass "tie-watch";
+pass "tie-watch start";
 
 sub run {
     my $output = "";
