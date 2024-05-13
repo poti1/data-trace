@@ -27,7 +27,6 @@
       },
       "test" : {
          "requires" : {
-            "Data::DPath" : "0.58",
             "Test::More" : "0"
          }
       }

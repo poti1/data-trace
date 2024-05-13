@@ -3,7 +3,6 @@ abstract: 'Trace when a data structure gets updated.'
 author:
   - 'Tim Potapov <tim.potapov@gmail.com>'
 build_requires:
-  Data::DPath: '0.58'
   Test::More: '0'
 configure_requires:
   Module::Build: '0.4004'
