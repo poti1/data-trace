@@ -22,11 +22,12 @@
       "runtime" : {
          "requires" : {
             "Data::DPath" : "0.58",
-            "perl" : "5.012"
+            "perl" : "5.014"
          }
       },
       "test" : {
          "requires" : {
+            "Data::DPath" : "0.58",
             "Test::More" : "0"
          }
       }

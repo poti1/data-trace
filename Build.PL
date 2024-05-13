@@ -28,7 +28,6 @@ my $builder = $class->new(
     },
     test_requires => {
         'Test::More' => '0',
-        'Data::DPath' => '0.58',
     },
     requires => {
         'perl'        => '5.014',

@@ -70,6 +70,15 @@ jobs:
           name: build_dir
           path: .
 
+      # TODO: Find out why DPath is missing without
+      # this new block.
+      - name: Install dependencies
+        run: |
+          cpanm Module::Build~0.4004
+          cpanm Test::CheckManifest
+          perl Build.PL
+          perl Build installdeps
+
       - name: Install deps and test
         run: cpan-install-dist-deps && test-dist
         env:

@@ -3,6 +3,7 @@ abstract: 'Trace when a data structure gets updated.'
 author:
   - 'Tim Potapov <tim.potapov@gmail.com>'
 build_requires:
+  Data::DPath: '0.58'
   Test::More: '0'
 configure_requires:
   Module::Build: '0.4004'
@@ -22,7 +23,7 @@ provides:
     version: '0.19'
 requires:
   Data::DPath: '0.58'
-  perl: '5.012'
+  perl: '5.014'
 resources:
   bugtracker: https://github.com/poti1/data-trace/issues
   license: http://www.perlfoundation.org/artistic_license_2_0
