@@ -1106,10 +1106,10 @@ sub _test_trace_only {
     my $args = $case->{args} // [];
 
     # Run the command with wantarray undef.
-    my ( $stdout_noret, $return_noret ) = _run( sub { Trace( @$args ) }, 0, );
+    my ( $stdout_noret, $return_noret ) = _run( sub { Data::Trace::Trace( @$args ) }, 0, );
 
     # Run the command with wantarray defined.
-    my ( $stdout_ret, $return_ret ) = _run( sub { Trace( @$args ) } );
+    my ( $stdout_ret, $return_ret ) = _run( sub { Data::Trace::Trace( @$args ) } );
 
     like(
         $stdout_noret,
