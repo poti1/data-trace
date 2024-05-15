@@ -1133,7 +1133,7 @@ sub _test_trace_only {
 ###########################################
 
 for my $case ( @cases ) {
-    $case->{debug} //= 0;
+    $case->{debug} //= 2;
     say "\ncase: " . Dumper( $case ) if $case->{debug} >= 2;
 
     # Compare stdout and return when using wantarray.
@@ -1144,7 +1144,7 @@ for my $case ( @cases ) {
         _test_trace_only( $case );
     }
 
-    last if $case->{debug};
+    # last if $case->{debug};
 }
 
 done_testing();
