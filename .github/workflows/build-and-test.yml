@@ -37,7 +37,7 @@ jobs:
           BUILD_DIR=$(perl -MModule::Build -e 'print Module::Build->resume->dist_dir')
           mv -v $BUILD_DIR build_dir
 
-      - name: Run tests (sanity check)
+      - name: Run tests
         env:
           AUTHOR_TESTING: 1
           AUTOMATED_TESTING: 1
@@ -46,7 +46,7 @@ jobs:
         run: |
           cd build_dir
           perl Build.PL
-          perl Build test
+          prove -lr t -v
 
       - name: Upload artifact for next steps
         uses: actions/upload-artifact@v4
