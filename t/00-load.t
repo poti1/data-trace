@@ -4,7 +4,7 @@ use strict;
 use warnings;
 use Test::More;
 
-plan tests => 1;
+plan tests => 2;
 
 BEGIN {
     use_ok( 'Data::Tie::Watch' ) || print "Bail out!\n";
