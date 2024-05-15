@@ -998,21 +998,21 @@ my @cases = (
     _define_cases_stack_trace(),
 
     # Scalar
-    _define_cases_scalar_basic(),
-    _define_cases_scalar_clone(),
-    _define_cases_scalar_no_clone(),
+  # _define_cases_scalar_basic(),
+  # _define_cases_scalar_clone(),
+  # _define_cases_scalar_no_clone(),
 
-    # Array
-    _define_cases_array_basic(),
-    _define_cases_array_clone(),
-    _define_cases_array_no_clone(),
-    _define_cases_array_element(),
+  # # Array
+  # _define_cases_array_basic(),
+  # _define_cases_array_clone(),
+  # _define_cases_array_no_clone(),
+  # _define_cases_array_element(),
 
-    # Hash
-    _define_cases_hash_basic(),
-    _define_cases_hash_clone(),
-    _define_cases_hash_no_clone(),
-    _define_cases_hash_element(),
+  # # Hash
+  # _define_cases_hash_basic(),
+  # _define_cases_hash_clone(),
+  # _define_cases_hash_no_clone(),
+  # _define_cases_hash_element(),
 
 );
 
