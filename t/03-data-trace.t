@@ -998,21 +998,21 @@ my @cases = (
     _define_cases_stack_trace(),
 
     # Scalar
-  # _define_cases_scalar_basic(),
-  # _define_cases_scalar_clone(),
-  # _define_cases_scalar_no_clone(),
+    _define_cases_scalar_basic(),
+    _define_cases_scalar_clone(),
+    _define_cases_scalar_no_clone(),
 
-  # # Array
-  # _define_cases_array_basic(),
-  # _define_cases_array_clone(),
-  # _define_cases_array_no_clone(),
-  # _define_cases_array_element(),
+    # Array
+    _define_cases_array_basic(),
+    _define_cases_array_clone(),
+    _define_cases_array_no_clone(),
+    _define_cases_array_element(),
 
-  # # Hash
-  # _define_cases_hash_basic(),
-  # _define_cases_hash_clone(),
-  # _define_cases_hash_no_clone(),
-  # _define_cases_hash_element(),
+    # Hash
+    _define_cases_hash_basic(),
+    _define_cases_hash_clone(),
+    _define_cases_hash_no_clone(),
+    _define_cases_hash_element(),
 
 );
 
@@ -1106,10 +1106,12 @@ sub _test_trace_only {
     my $args = $case->{args} // [];
 
     # Run the command with wantarray undef.
-    my ( $stdout_noret, $return_noret ) = _run( sub { Data::Trace::Trace( @$args ) }, 0, );
+    my ( $stdout_noret, $return_noret ) =
+      _run( sub { Data::Trace::Trace( @$args ) }, 0, );
 
     # Run the command with wantarray defined.
-    my ( $stdout_ret, $return_ret ) = _run( sub { Data::Trace::Trace( @$args ) } );
+    my ( $stdout_ret, $return_ret ) =
+      _run( sub { Data::Trace::Trace( @$args ) } );
 
     like(
         $stdout_noret,
@@ -1133,7 +1135,7 @@ sub _test_trace_only {
 ###########################################
 
 for my $case ( @cases ) {
-    $case->{debug} //= 2;
+    $case->{debug} //= 0;
     say "\ncase: " . Dumper( $case ) if $case->{debug} >= 2;
 
     # Compare stdout and return when using wantarray.
@@ -1144,7 +1146,7 @@ for my $case ( @cases ) {
         _test_trace_only( $case );
     }
 
-    # last if $case->{debug};
+    last if $case->{debug};
 }
 
 done_testing();
